@@ -14,8 +14,36 @@ from .models import (
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_superuser']
         read_only_fields = ['id']
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    employee_profile = serializers.SerializerMethodField()
+    organizations = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'is_staff', 'is_superuser', 'employee_profile', 'organizations']
+        
+    def get_employee_profile(self, obj):
+        if hasattr(obj, 'employee_profile'):
+            employee = obj.employee_profile
+            return {
+                'id': employee.id,
+                'employee_id': employee.employee_id,
+                'position': employee.position,
+                'organization_id': employee.organization.id,
+                'profile_photo': employee.profile_photo.url if employee.profile_photo else None
+            }
+        return None
+        
+    def get_organizations(self, obj):
+        memberships = obj.organization_memberships.filter(is_active=True)
+        return [{
+            'id': m.organization.id,
+            'name': m.organization.name,
+            'role': m.role
+        } for m in memberships]
 
 
 # ==================== ORGANIZATION ====================

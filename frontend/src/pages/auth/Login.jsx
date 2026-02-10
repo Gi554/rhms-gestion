@@ -18,9 +18,9 @@ export default function Login({ onLogin }) {
 
         try {
             const response = await api.login({ username, password })
-            onLogin(response.data)
+            await onLogin(response.data)
             toast.success('Connexion réussie !')
-            navigate('/dashboard')
+            // Navigation will be handled by App.jsx state change
         } catch (error) {
             toast.error('Identifiants incorrects')
             console.error('Login error:', error)

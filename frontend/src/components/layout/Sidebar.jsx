@@ -26,8 +26,19 @@ const generalNavigation = [
     { name: 'Aide', href: '/help', icon: HelpCircle },
 ]
 
-export default function Sidebar({ onLogout }) {
+export default function Sidebar({ onLogout, userProfile }) {
     const location = useLocation()
+
+    const isAdmin = userProfile?.is_superuser || userProfile?.is_staff
+    const userRole = userProfile?.organizations?.[0]?.role
+    const isManager = userRole === 'admin' || userRole === 'manager'
+
+    const filteredNavigation = mainNavigation.filter(item => {
+        if (item.href === '/employees' || item.href === '/departments') {
+            return isAdmin || isManager
+        }
+        return true
+    })
 
     return (
         <div className="flex w-64 flex-col bg-white h-screen p-4">
@@ -48,7 +59,7 @@ export default function Sidebar({ onLogout }) {
                         Menu
                     </h3>
                     <nav className="space-y-1">
-                        {mainNavigation.map((item) => {
+                        {filteredNavigation.map((item) => {
                             const isActive = location.pathname === item.href
                             return (
                                 <Link

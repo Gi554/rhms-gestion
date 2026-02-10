@@ -7,12 +7,13 @@ from .views import (
     DepartmentViewSet, EmployeeViewSet,
     LeaveTypeViewSet, LeaveRequestViewSet,
     AttendanceViewSet, DocumentViewSet, PayrollViewSet,
-    ProjectViewSet, EventViewSet
+    ProjectViewSet, EventViewSet, MeViewSet
 )
 from .health import health_check
 
 # Router pour les ViewSets
 router = DefaultRouter()
+router.register(r'auth/me', MeViewSet, basename='me')
 
 # Organization
 router.register(r'organizations', OrganizationViewSet, basename='organization')
