@@ -1,7 +1,6 @@
 # HRMS SaaS - Modern HR Platform 🚀
 
-A premium, full-stack Human Resources Management System designed for modern organizations. Built with a focus on clean aesthetics ("Donezo" style) and powerful data-driven features.
-
+A premium, full-stack Human Resources Management System designed for modern organizations.
 ## ✨ Key Features
 
 - **📊 Dynamic Dashboard**: Live stats, HR activity charts, and upcoming reminders.
