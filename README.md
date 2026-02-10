@@ -18,6 +18,10 @@ A premium, full-stack Human Resources Management System designed for modern orga
 - **Database**: PostgreSQL (Production) / SQLite (Development)
 - **Deployment**: Fully Dockerized (Containerized setup)
 
+## 🤝 Contributing
+
+We welcome contributions! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) to learn about our branching strategy and pull request process.
+
 ## 🚀 Quick Start
 
 ### 1. Backend Setup
