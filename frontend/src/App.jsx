@@ -12,29 +12,54 @@ import Dashboard from './pages/dashboard/Dashboard'
 import EmployeeList from './pages/employees/EmployeeList'
 import DepartmentList from './pages/departments/DepartmentList'
 import LeaveList from './pages/leaves/LeaveList'
+import AttendanceList from './pages/attendance/AttendanceList'
+import { api } from './lib/api-client'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  const fetchProfile = async () => {
+    try {
+      const profile = await api.getProfile()
+      setUserProfile(profile.data)
+      setIsAuthenticated(true)
+    } catch (err) {
+      console.error("Failed to fetch profile", err)
+      setIsAuthenticated(false)
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
-    // Check if user is authenticated
     const token = localStorage.getItem('accessToken')
-    setIsAuthenticated(!!token)
-    setLoading(false)
+    if (token) {
+      fetchProfile()
+    } else {
+      setLoading(false)
+    }
   }, [])
 
-  const handleLogin = (tokens) => {
+  const handleLogin = async (tokens) => {
     localStorage.setItem('accessToken', tokens.access)
     localStorage.setItem('refreshToken', tokens.refresh)
-    setIsAuthenticated(true)
+    await fetchProfile()
   }
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     setIsAuthenticated(false)
+    setUserProfile(null)
   }
+
+  const isAdmin = userProfile?.is_superuser || userProfile?.is_staff
+  const userRole = userProfile?.organizations?.[0]?.role
+  const isManager = userRole === 'admin' || userRole === 'manager'
 
   if (loading) {
     return (
@@ -65,16 +90,23 @@ function App() {
         <Route
           element={
             isAuthenticated ? (
-              <DashboardLayout onLogout={handleLogout} />
+              <DashboardLayout onLogout={handleLogout} userProfile={userProfile} />
             ) : (
               <Navigate to="/login" replace />
             )
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/employees" element={<EmployeeList />} />
-          <Route path="/departments" element={<DepartmentList />} />
+          <Route
+            path="/employees"
+            element={isAdmin || isManager ? <EmployeeList /> : <Navigate to="/dashboard" replace />}
+          />
+          <Route
+            path="/departments"
+            element={isAdmin || isManager ? <DepartmentList /> : <Navigate to="/dashboard" replace />}
+          />
           <Route path="/leaves" element={<LeaveList />} />
+          <Route path="/attendance" element={<AttendanceList />} />
         </Route>
 
         {/* Default redirect */}

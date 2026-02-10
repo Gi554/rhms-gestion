@@ -20,12 +20,19 @@ from .serializers import (
     EmployeeListSerializer, EmployeeDetailSerializer,
     LeaveTypeSerializer, LeaveRequestListSerializer, LeaveRequestDetailSerializer,
     AttendanceSerializer, DocumentSerializer, PayrollSerializer,
-    ProjectSerializer, EventSerializer
+    ProjectSerializer, EventSerializer, UserProfileSerializer
 )
 from .permissions import (
     IsOrganizationMember, IsOrganizationAdmin,
     IsManagerOrAdmin, IsOwnerOrReadOnly
 )
+
+class MeViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated]
+    
+    def list(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
 
 
 # ==================== MIXINS ====================
@@ -74,7 +81,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             members__is_active=True
         ).distinct()
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
     def stats(self, request, pk=None):
         """Statistiques de l'organisation"""
         org = self.get_object()
@@ -88,7 +95,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         
         return Response(stats)
     
-    @action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
     def activity_chart(self, request, pk=None):
         """Statistiques d'activité (Présences sur les 7 derniers jours)"""
         org = self.get_object()
@@ -138,7 +145,7 @@ class DepartmentViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     """
     queryset = Department.objects.select_related('organization', 'manager', 'parent').all()
     serializer_class = DepartmentSerializer
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [IsAuthenticated, IsOrganizationMember, IsManagerOrAdmin]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['organization', 'is_active', 'parent']
     search_fields = ['name', 'code']
@@ -163,7 +170,7 @@ class EmployeeViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     queryset = Employee.objects.select_related(
         'organization', 'department', 'manager', 'user'
     ).all()
-    permission_classes = [IsAuthenticated, IsOrganizationMember]
+    permission_classes = [IsAuthenticated, IsOrganizationMember, IsManagerOrAdmin]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['organization', 'department', 'status', 'employment_type', 'is_active']
     search_fields = ['first_name', 'last_name', 'email', 'employee_id', 'position']
@@ -244,21 +251,35 @@ class LeaveRequestViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
         queryset = super().get_queryset()
         user = self.request.user
         
-        # Filtrer selon le rôle
+        # Les superusers voient tout (via OrganizationFilterMixin)
+        if user.is_superuser:
+            return queryset
+            
+        # Déterminer si l'utilisateur est un manager/admin
+        is_admin_manager = user.organization_memberships.filter(
+            is_active=True, 
+            role__in=['manager', 'admin', 'owner']
+        ).exists()
+        
+        # Filtre selon le rôle demandé
         role = self.request.query_params.get('role', None)
         
-        if role == 'my_requests':
-            # Mes propres demandes
+        if role == 'my_requests' or not is_admin_manager:
+            # Mes propres demandes ou l'utilisateur n'est qu'un employé
             if hasattr(user, 'employee_profile'):
                 queryset = queryset.filter(employee=user.employee_profile)
-        elif role == 'to_approve':
-            # Demandes à approuver (si je suis manager)
+            else:
+                queryset = queryset.none()
+        elif role == 'to_approve' and is_admin_manager:
+            # Demandes à approuver (si je suis manager/admin)
             if hasattr(user, 'employee_profile'):
-                # Demandes des subordonnés
                 queryset = queryset.filter(
                     employee__manager=user.employee_profile,
                     status='pending'
                 )
+            else:
+                # Si admin sans profil employé, voit toutes les demandes en attente de l'organisation
+                queryset = queryset.filter(status='pending')
         
         return queryset
     
@@ -325,6 +346,86 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
             serializer = self.get_serializer(attendances, many=True)
             return Response(serializer.data)
         return Response([])
+
+    @action(detail=False, methods=['get'])
+    def current_status(self, request):
+        """Statut de présence actuel (aujourd'hui)"""
+        if not hasattr(request.user, 'employee_profile'):
+            return Response({'status': 'none'})
+            
+        today = timezone.now().date()
+        attendance = Attendance.objects.filter(
+            employee=request.user.employee_profile,
+            date=today
+        ).first()
+        
+        if not attendance:
+            return Response({'status': 'none'})
+            
+        return Response({
+            'status': attendance.status,
+            'check_in': attendance.check_in,
+            'check_out': attendance.check_out,
+            'is_clocked_in': attendance.check_in is not None and attendance.check_out is None
+        })
+
+    @action(detail=False, methods=['post'])
+    def check_in(self, request):
+        """Pointer à l'arrivée"""
+        if not hasattr(request.user, 'employee_profile'):
+            return Response({'error': 'Profil employé non trouvé'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        employee = request.user.employee_profile
+        today = timezone.now().date()
+        now_time = timezone.now().time()
+        
+        attendance, created = Attendance.objects.get_or_create(
+            employee=employee,
+            date=today,
+            defaults={
+                'organization': employee.organization,
+                'check_in': now_time,
+                'status': 'present'
+            }
+        )
+        
+        if not created:
+            if attendance.check_in:
+                return Response({'error': 'Déjà pointé aujourd\'hui'}, status=status.HTTP_400_BAD_REQUEST)
+            attendance.check_in = now_time
+            attendance.save()
+            
+        return Response(AttendanceSerializer(attendance).data)
+
+    @action(detail=False, methods=['post'])
+    def check_out(self, request):
+        """Pointer au départ"""
+        if not hasattr(request.user, 'employee_profile'):
+            return Response({'error': 'Profil employé non trouvé'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        employee = request.user.employee_profile
+        today = timezone.now().date()
+        now_time = timezone.now().time()
+        
+        attendance = Attendance.objects.filter(employee=employee, date=today).first()
+        
+        if not attendance or not attendance.check_in:
+            return Response({'error': 'Vous devez d\'abord pointer à l\'arrivée'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if attendance.check_out:
+            return Response({'error': 'Déjà pointé au départ aujourd\'hui'}, status=status.HTTP_400_BAD_REQUEST)
+            
+        attendance.check_out = now_time
+        
+        # Calculer les heures travaillées
+        import datetime
+        dt_in = datetime.datetime.combine(datetime.date.today(), attendance.check_in)
+        dt_out = datetime.datetime.combine(datetime.date.today(), now_time)
+        diff = dt_out - dt_in
+        attendance.hours_worked = diff.total_seconds() / 3600
+        
+        attendance.save()
+        return Response(AttendanceSerializer(attendance).data)
 
 
 # ==================== DOCUMENT ====================

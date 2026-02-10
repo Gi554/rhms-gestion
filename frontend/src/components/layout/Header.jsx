@@ -2,7 +2,21 @@ import { Search, Bell, Mail } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 
-export default function Header({ onLogout }) {
+export default function Header({ onLogout, userProfile }) {
+    const fullName = userProfile?.first_name
+        ? `${userProfile.first_name} ${userProfile.last_name || ''}`
+        : userProfile?.username || "Utilisateur"
+
+    const email = userProfile?.email || ""
+    const avatarSeed = userProfile?.username || "User"
+
+    // Support for profile photo from employee profile
+    const profilePhoto = userProfile?.employee_profile?.profile_photo
+        ? userProfile.employee_profile.profile_photo.startsWith('http')
+            ? userProfile.employee_profile.profile_photo
+            : `http://localhost:8000${userProfile.employee_profile.profile_photo}`
+        : `https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`
+
     return (
         <header className="flex h-24 items-center justify-between px-8 bg-transparent">
             {/* Search */}
@@ -11,7 +25,7 @@ export default function Header({ onLogout }) {
                     <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                     <Input
                         type="search"
-                        placeholder="Rechercher une tâche..."
+                        placeholder="Rechercher..."
                         className="w-full pl-12 h-12 rounded-2xl border-gray-200 bg-white shadow-sm focus:ring-primary/20"
                     />
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1">
@@ -38,14 +52,14 @@ export default function Header({ onLogout }) {
                 <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
                     <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white shadow-sm">
                         <img
-                            src="https://api.dicebear.com/7.x/avataaars/svg?seed=Admin"
-                            alt="Admin"
+                            src={profilePhoto}
+                            alt={fullName}
                             className="h-full w-full object-cover bg-gray-100"
                         />
                     </div>
                     <div className="text-sm">
-                        <div className="font-bold text-gray-900">Admin User</div>
-                        <div className="text-gray-500 text-xs">admin@hrms.com</div>
+                        <div className="font-bold text-gray-900">{fullName}</div>
+                        <div className="text-gray-500 text-xs">{email}</div>
                     </div>
                 </div>
             </div>
