@@ -405,6 +405,28 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     ordering_fields = ['date']
     ordering = ['-date']
     
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        
+        if user.is_superuser:
+            return queryset
+            
+        # Obtenir le rôle de l'utilisateur dans l'organisation (on prend la première par simplicité)
+        member = user.organization_memberships.first()
+        if not member:
+            return Attendance.objects.none()
+            
+        # Si c'est un manager, admin ou owner, il voit tout l'organisation
+        if member.role in ['admin', 'manager', 'owner']:
+            return queryset
+            
+        # Sinon, il ne voit QUE ses propres présences
+        if hasattr(user, 'employee_profile'):
+            return queryset.filter(employee=user.employee_profile)
+            
+        return Attendance.objects.none()
+    
     @action(detail=False, methods=['get'])
     def my_attendance(self, request):
         """Mes présences"""

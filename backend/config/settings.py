@@ -144,6 +144,12 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
+# --- Authentication Backends ---
+AUTHENTICATION_BACKENDS = [
+    'api.authentication.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 # API Documentation (Swagger/OpenAPI)
 SPECTACULAR_SETTINGS = {
     'TITLE': 'HRMS SaaS API',

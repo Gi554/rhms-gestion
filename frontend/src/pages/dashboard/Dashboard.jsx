@@ -165,7 +165,7 @@ export default function Dashboard() {
 
     // 7. Time Tracker Logic
     const { data: attendanceStatus, isLoading: statusLoading } = useQuery({
-        queryKey: ['attendance-status'],
+        queryKey: ['attendance-status', userProfile?.id],
         queryFn: async () => {
             const res = await api.getAttendanceStatus()
             return res.data

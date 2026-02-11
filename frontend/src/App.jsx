@@ -16,10 +16,13 @@ import AttendanceList from './pages/attendance/AttendanceList'
 import Profile from './pages/profile/Profile'
 import { api } from './lib/api-client'
 
+import { useQueryClient } from '@tanstack/react-query'
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   const fetchProfile = async () => {
     try {
@@ -56,6 +59,7 @@ function App() {
     localStorage.removeItem('refreshToken')
     setIsAuthenticated(false)
     setUserProfile(null)
+    queryClient.clear()
   }
 
   const isAdmin = userProfile?.is_superuser || userProfile?.is_staff
