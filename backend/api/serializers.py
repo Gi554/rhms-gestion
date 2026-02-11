@@ -196,6 +196,7 @@ class LeaveRequestListSerializer(serializers.ModelSerializer):
     """Serializer pour les listes de congés"""
     employee_detail = serializers.SerializerMethodField()
     leave_type_detail = LeaveTypeSerializer(source='leave_type', read_only=True)
+    approved_by_detail = serializers.SerializerMethodField()
     
     class Meta:
         model = LeaveRequest
@@ -203,9 +204,14 @@ class LeaveRequestListSerializer(serializers.ModelSerializer):
             'id', 'organization', 'employee', 'employee_detail',
             'leave_type', 'leave_type_detail',
             'start_date', 'end_date', 'total_days',
-            'status', 'created_at'
+            'reason', 'status', 'approved_by', 'approved_by_detail',
+            'rejection_reason', 'created_at'
         ]
         read_only_fields = ['id', 'total_days', 'created_at']
+        extra_kwargs = {
+            'employee': {'required': False},
+            'organization': {'required': False}
+        }
     
     def get_employee_detail(self, obj):
         return {
@@ -214,6 +220,14 @@ class LeaveRequestListSerializer(serializers.ModelSerializer):
             'employee_id': obj.employee.employee_id,
             'profile_photo': obj.employee.profile_photo.url if obj.employee.profile_photo else None
         }
+
+    def get_approved_by_detail(self, obj):
+        if obj.approved_by:
+            return {
+                'id': obj.approved_by.id,
+                'full_name': obj.approved_by.full_name
+            }
+        return None
 
 
 class LeaveRequestDetailSerializer(serializers.ModelSerializer):
@@ -234,6 +248,10 @@ class LeaveRequestDetailSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'total_days', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'employee': {'required': False},
+            'organization': {'required': False}
+        }
     
     def get_approved_by_detail(self, obj):
         if obj.approved_by:
@@ -242,6 +260,15 @@ class LeaveRequestDetailSerializer(serializers.ModelSerializer):
                 'full_name': obj.approved_by.full_name
             }
         return None
+
+    def validate(self, data):
+        """Validation des dates"""
+        if data.get('start_date') and data.get('end_date'):
+            if data['end_date'] < data['start_date']:
+                raise serializers.ValidationError({
+                    "non_field_errors": "La date de fin ne peut pas être antérieure à la date de début."
+                })
+        return data
 
 
 # ==================== ATTENDANCE ====================
