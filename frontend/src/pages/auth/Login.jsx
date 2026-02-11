@@ -41,14 +41,14 @@ export default function Login({ onLogin }) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                         <label htmlFor="username" className="text-sm font-medium">
-                            Nom d'utilisateur
+                            E-mail ou Nom d'utilisateur
                         </label>
                         <Input
                             id="username"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="admin"
+                            placeholder="votre@email.com ou nom d'utilisateur"
                             required
                         />
                     </div>

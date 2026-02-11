@@ -1,18 +1,28 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { Plus, Search, Filter, MoreHorizontal, Mail, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { api } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
+import AddEmployeeModal from './AddEmployeeModal'
 
 export default function EmployeeList() {
+    const { userProfile } = useOutletContext()
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+
+    // Get current organization ID from user profile
+    const currentOrgId = userProfile?.organizations?.[0]?.id
+
     const { data: employees, isLoading, error } = useQuery({
-        queryKey: ['employees'],
+        queryKey: ['employees', currentOrgId],
         queryFn: async () => {
-            const response = await api.getEmployees()
+            const response = await api.getEmployees({ organization: currentOrgId })
             return response.data.results || response.data
         },
+        enabled: !!currentOrgId
     })
 
     if (isLoading) {
@@ -47,7 +57,10 @@ export default function EmployeeList() {
                         <Filter className="mr-2 h-4 w-4" />
                         Filtres
                     </Button>
-                    <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-11 px-6 shadow-lg shadow-primary/20">
+                    <Button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="bg-primary hover:bg-primary/90 text-white rounded-xl h-11 px-6 shadow-lg shadow-primary/20"
+                    >
                         <Plus className="mr-2 h-4 w-4" />
                         Ajouter
                     </Button>
@@ -141,7 +154,10 @@ export default function EmployeeList() {
                             </div>
                             <h3 className="text-lg font-medium text-gray-900">Aucun employé trouvé</h3>
                             <p className="text-gray-500 mt-1 max-w-sm">Commencez par ajouter votre premier employé pour voir apparaître les données ici.</p>
-                            <Button className="mt-6 bg-primary text-white rounded-xl shadow-lg shadow-primary/20">
+                            <Button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="mt-6 bg-primary text-white rounded-xl shadow-lg shadow-primary/20"
+                            >
                                 <Plus className="mr-2 h-4 w-4" />
                                 Ajouter un employé
                             </Button>
@@ -149,6 +165,12 @@ export default function EmployeeList() {
                     )}
                 </CardContent>
             </Card>
+
+            <AddEmployeeModal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                organizationId={currentOrgId}
+            />
         </div>
     )
 }

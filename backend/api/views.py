@@ -1,9 +1,11 @@
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
+from django.db import transaction
+from django.contrib.auth.models import User
 from django.utils import timezone
 import datetime
 
@@ -33,6 +35,23 @@ class MeViewSet(viewsets.ViewSet):
     def list(self, request):
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='change-password')
+    def change_password(self, request):
+        """Réinitialisation du mot de passe"""
+        user = request.user
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+        
+        if not user.check_password(old_password):
+            return Response(
+                {"detail": "L'ancien mot de passe est incorrect."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        user.set_password(new_password)
+        user.save()
+        return Response({"detail": "Mot de passe mis à jour avec succès."})
 
 
 # ==================== MIXINS ====================
@@ -181,6 +200,56 @@ class EmployeeViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
         if self.action == 'list':
             return EmployeeListSerializer
         return EmployeeDetailSerializer
+    
+    def perform_create(self, serializer):
+        """
+        Automate User, ID and OrganizationMember creation when an Employee is added
+        """
+        with transaction.atomic():
+            # 1. Generate automatic employee ID if not provided
+            org_id = self.request.data.get('organization')
+            if not org_id:
+                raise serializers.ValidationError({"organization": "L'organisation est requise."})
+                
+            org = Organization.objects.get(id=org_id)
+            count = Employee.objects.filter(organization=org).count() + 1
+            year = timezone.now().year
+            auto_id = f"EMP-{year}-{count:04d}"
+            
+            # 2. Save the employee profile (using auto_id if needed)
+            data = serializer.validated_data
+            if not data.get('employee_id'):
+                data['employee_id'] = auto_id
+                
+            employee = serializer.save(employee_id=data['employee_id'])
+            
+            # 3. Check if a user already exists with this email
+            user_email = employee.email
+            username = user_email.split('@')[0]
+            
+            user = User.objects.filter(email=user_email).first()
+            
+            if not user:
+                # 3. Create a new Django User
+                user = User.objects.create_user(
+                    username=username,
+                    email=user_email,
+                    password='Hrms2026!', # Default temporary password
+                    first_name=employee.first_name,
+                    last_name=employee.last_name
+                )
+            
+            # 4. Link User to Employee
+            employee.user = user
+            employee.save()
+            
+            # 5. Create OrganizationMember for access
+            role = self.request.data.get('role', 'employee')
+            OrganizationMember.objects.get_or_create(
+                organization=employee.organization,
+                user=user,
+                defaults={'role': role}
+            )
     
     @action(detail=True, methods=['get'])
     def subordinates(self, request, pk=None):
@@ -335,6 +404,28 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     filterset_fields = ['organization', 'employee', 'date', 'status']
     ordering_fields = ['date']
     ordering = ['-date']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+        
+        if user.is_superuser:
+            return queryset
+            
+        # Obtenir le rôle de l'utilisateur dans l'organisation (on prend la première par simplicité)
+        member = user.organization_memberships.first()
+        if not member:
+            return Attendance.objects.none()
+            
+        # Si c'est un manager, admin ou owner, il voit tout l'organisation
+        if member.role in ['admin', 'manager', 'owner']:
+            return queryset
+            
+        # Sinon, il ne voit QUE ses propres présences
+        if hasattr(user, 'employee_profile'):
+            return queryset.filter(employee=user.employee_profile)
+            
+        return Attendance.objects.none()
     
     @action(detail=False, methods=['get'])
     def my_attendance(self, request):

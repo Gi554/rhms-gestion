@@ -173,7 +173,7 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
             'annual_leave_days', 'sick_leave_days',
             'status', 'is_active', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'full_name', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'employee_id', 'full_name', 'created_at', 'updated_at']
     
     def get_subordinates_count(self, obj):
         return obj.subordinates.filter(is_active=True).count()

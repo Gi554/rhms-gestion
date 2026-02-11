@@ -187,23 +187,23 @@ employees_data = [
     },
 ]
 
-employees = {}
-for emp_data in employees_data:
-    dept_code = emp_data.pop('department')
-    emp, created = Employee.objects.get_or_create(
-        organization=org,
-        employee_id=emp_data['employee_id'],
-        defaults={
-            **emp_data,
-            'department': departments[dept_code],
-            'phone': '+33 6 12 34 56 78',
-            'employment_type': 'full_time',
-            'status': 'active',
-        }
-    )
     employees[emp.employee_id] = emp
+    
+    # Associer automatiquement à l'utilisateur correspondant si possible
+    if emp.employee_id == 'EMP001':
+        emp.user = admin_user
+    elif emp.employee_id == 'EMP002':
+        emp.user = manager_user
+    elif emp.employee_id == 'EMP003':
+        emp.user = employee_user
+    else:
+        # Fallback par email
+        emp.user = User.objects.filter(email=emp.email).first()
+    
+    emp.save()
+    
     if created:
-        print(f"✅ Employé créé: {emp.full_name} ({emp.employee_id})")
+        print(f"✅ Employé créé et lié: {emp.full_name} ({emp.employee_id})")
 
 # Définir les managers
 if 'EMP001' in employees and 'EMP002' in employees:
