@@ -13,6 +13,7 @@ import EmployeeList from './pages/employees/EmployeeList'
 import DepartmentList from './pages/departments/DepartmentList'
 import LeaveList from './pages/leaves/LeaveList'
 import AttendanceList from './pages/attendance/AttendanceList'
+import Profile from './pages/profile/Profile'
 import { api } from './lib/api-client'
 
 function App() {
@@ -107,6 +108,7 @@ function App() {
           />
           <Route path="/leaves" element={<LeaveList />} />
           <Route path="/attendance" element={<AttendanceList />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
 
         {/* Default redirect */}

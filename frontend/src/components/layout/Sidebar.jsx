@@ -8,6 +8,7 @@ import {
     FileText,
     Settings,
     HelpCircle,
+    User,
     LogOut
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -22,6 +23,7 @@ const mainNavigation = [
 ]
 
 const generalNavigation = [
+    { name: 'Mon Profil', href: '/profile', icon: User },
     { name: 'Paramètres', href: '/settings', icon: Settings },
     { name: 'Aide', href: '/help', icon: HelpCircle },
 ]

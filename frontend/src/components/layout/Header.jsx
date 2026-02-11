@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Search, Bell, Mail } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -49,7 +50,7 @@ export default function Header({ onLogout, userProfile }) {
                 </div>
 
                 {/* User Profile */}
-                <div className="flex items-center gap-4 pl-4 border-l border-gray-200">
+                <Link to="/profile" className="flex items-center gap-4 pl-4 border-l border-gray-200 hover:opacity-80 transition-opacity">
                     <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-white shadow-sm">
                         <img
                             src={profilePhoto}
@@ -61,7 +62,7 @@ export default function Header({ onLogout, userProfile }) {
                         <div className="font-bold text-gray-900">{fullName}</div>
                         <div className="text-gray-500 text-xs">{email}</div>
                     </div>
-                </div>
+                </Link>
             </div>
         </header>
     )
