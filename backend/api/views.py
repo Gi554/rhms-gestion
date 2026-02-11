@@ -341,16 +341,40 @@ class LeaveRequestViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
                 queryset = queryset.none()
         elif role == 'to_approve' and is_admin_manager:
             # Demandes à approuver (si je suis manager/admin)
-            if hasattr(user, 'employee_profile'):
-                queryset = queryset.filter(
-                    employee__manager=user.employee_profile,
-                    status='pending'
-                )
-            else:
-                # Si admin sans profil employé, voit toutes les demandes en attente de l'organisation
+            user_member = user.organization_memberships.filter(is_active=True).first()
+            user_role = user_member.role if user_member else 'employee'
+            
+            if user_role in ['admin', 'owner']:
+                # Les Admins/Owners voient TOUTES les demandes en attente de l'organisation
                 queryset = queryset.filter(status='pending')
+                # On exclut ses propres demandes (auto-approbation interdite)
+                if hasattr(user, 'employee_profile'):
+                    queryset = queryset.exclude(employee=user.employee_profile)
+            elif user_role == 'manager':
+                # Les Managers voient seulement les demandes de leurs subordonnés directs
+                if hasattr(user, 'employee_profile'):
+                    queryset = queryset.filter(
+                        employee__manager=user.employee_profile,
+                        status='pending'
+                    )
+                else:
+                    queryset = queryset.none()
         
         return queryset
+
+    def perform_create(self, serializer):
+        """Forcer la demande à être personnelle (liée au demandeur)"""
+        user = self.request.user
+        employee = getattr(user, 'employee_profile', None)
+        
+        if not employee:
+            raise serializers.ValidationError({"detail": "Vous n'avez pas de profil employé associé à votre compte."})
+            
+        # On utilise systématiquement l'organisation et l'employé de l'utilisateur connecté
+        serializer.save(
+            employee=employee, 
+            organization=employee.organization
+        )
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
     def approve(self, request, pk=None):

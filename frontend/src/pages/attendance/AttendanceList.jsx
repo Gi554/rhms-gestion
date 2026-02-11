@@ -88,7 +88,7 @@ export default function AttendanceList() {
                                 <tr>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employé / Date</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pointage</th>
-                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Heures</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Durée</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
@@ -99,15 +99,16 @@ export default function AttendanceList() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">
-                                                    {isManager ? <User className="h-5 w-5" /> : <CalendarIcon className="h-5 w-5" />}
+                                                    <User className="h-5 w-5" />
                                                 </div>
                                                 <div>
-                                                    {isManager && (
-                                                        <div className="text-sm font-bold text-gray-900 leading-none mb-1">
-                                                            {attendance.employee_detail?.full_name || "Inconnu"}
-                                                        </div>
-                                                    )}
-                                                    <div className={cn("text-gray-500 capitalize", isManager ? "text-[10px] font-medium" : "font-bold text-gray-900")}>
+                                                    <div className="text-sm font-bold text-gray-900 leading-none">
+                                                        {attendance.employee_detail?.full_name || "Inconnu"}
+                                                    </div>
+                                                    <div className="text-[10px] text-gray-400 font-bold uppercase mt-1">
+                                                        #{attendance.employee_detail?.employee_id || "ID-?"}
+                                                    </div>
+                                                    <div className="text-gray-500 capitalize text-[10px] font-medium mt-1">
                                                         {format(new Date(attendance.date), "EEEE d MMMM", { locale: fr })}
                                                     </div>
                                                 </div>
