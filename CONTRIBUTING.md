@@ -13,10 +13,7 @@ We use a two-branch main strategy:
 ## 🚀 How to Contribute
 
 1.  **Fork** the repository on GitHub.
-2.  **Clone** your fork locally:
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/rhms-gestion.git
-    ```
+2.  **Clone** your fork locally
 3.  **Create a branch** for your feature or fix (always branch out from `develop`):
     ```bash
     git checkout develop
