@@ -10,8 +10,11 @@ import AuthLayout from './layouts/AuthLayout'
 import Login from './pages/auth/Login'
 import Dashboard from './pages/dashboard/Dashboard'
 import EmployeeList from './pages/employees/EmployeeList'
+import EmployeeDetail from './pages/employees/EmployeeDetail'
 import DepartmentList from './pages/departments/DepartmentList'
 import LeaveList from './pages/leaves/LeaveList'
+import PayrollList from './pages/payroll/PayrollList'
+import DocumentList from './pages/documents/DocumentList'
 import AttendanceList from './pages/attendance/AttendanceList'
 import Profile from './pages/profile/Profile'
 import { api } from './lib/api-client'
@@ -107,11 +110,17 @@ function App() {
             element={isAdmin || isManager ? <EmployeeList /> : <Navigate to="/dashboard" replace />}
           />
           <Route
+            path="/employees/:id"
+            element={isAdmin || isManager ? <EmployeeDetail /> : <Navigate to="/dashboard" replace />}
+          />
+          <Route
             path="/departments"
             element={isAdmin || isManager ? <DepartmentList /> : <Navigate to="/dashboard" replace />}
           />
           <Route path="/leaves" element={<LeaveList />} />
           <Route path="/attendance" element={<AttendanceList />} />
+          <Route path="/payroll" element={<PayrollList />} />
+          <Route path="/documents" element={<DocumentList />} />
           <Route path="/profile" element={<Profile />} />
         </Route>
 

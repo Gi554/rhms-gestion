@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useOutletContext } from 'react-router-dom'
-import { Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Filter, ChevronRight } from 'lucide-react'
+import { Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Filter, ChevronRight, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -10,18 +10,27 @@ import { api } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 
 export default function LeaveList() {
     const { userProfile } = useOutletContext()
     const queryClient = useQueryClient()
-    const [activeTab, setActiveTab] = useState('my') // 'my' or 'team'
+
+    // Tabs & modals
+    const [activeTab, setActiveTab] = useState('my')
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false)
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
     const [selectedLeave, setSelectedLeave] = useState(null)
     const [rejectionReason, setRejectionReason] = useState('')
 
-    // Form state for new request
+    // Filters state
+    const [search, setSearch] = useState('')
+    const [statusFilter, setStatusFilter] = useState('all')
+    const [typeFilter, setTypeFilter] = useState('all')
+    const [monthFilter, setMonthFilter] = useState('all')
+
+    // Form state
     const [formData, setFormData] = useState({
         leave_type: '',
         start_date: '',
@@ -44,7 +53,7 @@ export default function LeaveList() {
     })
 
     // Fetch Leave Requests
-    const { data: leaves, isLoading, error } = useQuery({
+    const { data: leaves, isLoading } = useQuery({
         queryKey: ['leaves', activeTab, userProfile?.id],
         queryFn: async () => {
             const params = activeTab === 'my' ? { role: 'my_requests' } : { role: 'to_approve' }
@@ -52,6 +61,65 @@ export default function LeaveList() {
             return response.data.results || response.data
         },
     })
+
+    // Client-side filtering
+    const filtered = useMemo(() => {
+        if (!leaves) return []
+        return leaves.filter(leave => {
+            // Search
+            const q = search.toLowerCase()
+            const matchSearch = !q ||
+                leave.employee_detail?.full_name?.toLowerCase().includes(q) ||
+                leave.leave_type_detail?.name?.toLowerCase().includes(q) ||
+                leave.reason?.toLowerCase().includes(q)
+
+            // Status
+            const matchStatus = statusFilter === 'all' || leave.status === statusFilter
+
+            // Type
+            const matchType = typeFilter === 'all' || String(leave.leave_type) === typeFilter
+
+            // Month
+            let matchMonth = true
+            if (monthFilter !== 'all') {
+                const leaveMonth = leave.start_date?.slice(0, 7) // "YYYY-MM"
+                matchMonth = leaveMonth === monthFilter
+            }
+
+            return matchSearch && matchStatus && matchType && matchMonth
+        })
+    }, [leaves, search, statusFilter, typeFilter, monthFilter])
+
+    // Status counters
+    const counters = useMemo(() => {
+        if (!leaves) return { all: 0, pending: 0, approved: 0, rejected: 0 }
+        return {
+            all: leaves.length,
+            pending: leaves.filter(l => l.status === 'pending').length,
+            approved: leaves.filter(l => l.status === 'approved').length,
+            rejected: leaves.filter(l => l.status === 'rejected').length,
+        }
+    }, [leaves])
+
+    // Month options from existing leaves
+    const monthOptions = useMemo(() => {
+        if (!leaves) return []
+        const months = [...new Set(leaves.map(l => l.start_date?.slice(0, 7)).filter(Boolean))]
+        return months.sort().reverse().map(m => {
+            const [y, mo] = m.split('-')
+            const d = new Date(parseInt(y), parseInt(mo) - 1, 1)
+            return { value: m, label: format(d, 'MMMM yyyy', { locale: fr }) }
+        })
+    }, [leaves])
+
+    const hasActiveFilters = statusFilter !== 'all' || typeFilter !== 'all' || monthFilter !== 'all' || search
+
+    const clearFilters = () => {
+        setSearch('')
+        setStatusFilter('all')
+        setTypeFilter('all')
+        setMonthFilter('all')
+    }
 
     // Mutations
     const createMutation = useMutation({
@@ -63,14 +131,13 @@ export default function LeaveList() {
             setFormData({ leave_type: '', start_date: '', end_date: '', reason: '' })
         },
         onError: (err) => {
-            const errorData = err.response?.data;
+            const errorData = err.response?.data
             if (errorData) {
-                // Extraire le premier message d'erreur qu'on trouve
-                const firstError = Object.values(errorData)[0];
-                const msg = Array.isArray(firstError) ? firstError[0] : (typeof firstError === 'string' ? firstError : errorData.detail || "Erreur lors de l'envoi");
-                toast.error(msg);
+                const firstError = Object.values(errorData)[0]
+                const msg = Array.isArray(firstError) ? firstError[0] : (typeof firstError === 'string' ? firstError : errorData.detail || "Erreur lors de l'envoi")
+                toast.error(msg)
             } else {
-                toast.error("Erreur de connexion au serveur");
+                toast.error("Erreur de connexion au serveur")
             }
         }
     })
@@ -97,35 +164,19 @@ export default function LeaveList() {
 
     const getStatusConfig = (status) => {
         switch (status) {
-            case 'approved': return { color: "text-green-600 bg-green-50", icon: CheckCircle2, label: "Approuvé" }
-            case 'rejected': return { color: "text-red-600 bg-red-50", icon: XCircle, label: "Rejeté" }
-            case 'pending': return { color: "text-orange-600 bg-orange-50", icon: Clock, label: "En attente" }
-            default: return { color: "text-gray-600 bg-gray-50", icon: parsed => null, label: status }
+            case 'approved': return { color: "text-green-600 bg-green-50", label: "Approuvé" }
+            case 'rejected': return { color: "text-red-600 bg-red-50", label: "Rejeté" }
+            case 'pending': return { color: "text-orange-600 bg-orange-50", label: "En attente" }
+            default: return { color: "text-gray-600 bg-gray-50", label: status }
         }
-    }
-
-    const getApprovalMessage = (leave) => {
-        if (leave.status !== 'pending') return null;
-
-        const isUserRequest = leave.employee === userProfile?.employee_profile?.id;
-
-        if (isUserRequest) {
-            if (userRole === 'manager') {
-                return "En attente de l'Administrateur";
-            }
-            return "En attente du Manager ou Admin";
-        }
-        return null;
     }
 
     const handleCreateRequest = (e) => {
         e.preventDefault()
-
         if (new Date(formData.end_date) < new Date(formData.start_date)) {
-            toast.error("La date de fin ne peut pas être avant la date de début.");
-            return;
+            toast.error("La date de fin ne peut pas être avant la date de début.")
+            return
         }
-
         createMutation.mutate(formData)
     }
 
@@ -139,7 +190,7 @@ export default function LeaveList() {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Header Section */}
+            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Gestion des Congés</h1>
@@ -149,7 +200,7 @@ export default function LeaveList() {
                 </div>
                 <Button
                     onClick={() => setIsModalOpen(true)}
-                    className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-12 px-8 shadow-xl shadow-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-12 px-8 shadow-xl shadow-primary/20"
                 >
                     <Plus className="mr-2 h-5 w-5" />
                     Nouvelle demande
@@ -159,49 +210,124 @@ export default function LeaveList() {
             {/* Tabs for Manager */}
             {isManager && (
                 <div className="flex p-1.5 bg-gray-100/50 rounded-2xl w-fit border border-gray-100">
-                    <button
-                        onClick={() => setActiveTab('my')}
-                        className={cn(
-                            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200",
-                            activeTab === 'my'
-                                ? "bg-white text-primary shadow-sm ring-1 ring-gray-950/5"
-                                : "text-gray-500 hover:text-gray-700"
-                        )}
-                    >
-                        Mes Demandes
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('team')}
-                        className={cn(
-                            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200",
-                            activeTab === 'team'
-                                ? "bg-white text-primary shadow-sm ring-1 ring-gray-950/5"
-                                : "text-gray-500 hover:text-gray-700"
-                        )}
-                    >
-                        Équipe à Valider
-                    </button>
+                    {[
+                        { key: 'my', label: 'Mes Demandes' },
+                        { key: 'team', label: 'Équipe à Valider' }
+                    ].map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={cn(
+                                "px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-200",
+                                activeTab === tab.key
+                                    ? "bg-white text-primary shadow-sm ring-1 ring-gray-950/5"
+                                    : "text-gray-500 hover:text-gray-700"
+                            )}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             )}
 
-            {/* Search Bar */}
-            <div className="relative group">
-                <Search className="absolute left-5 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 group-focus-within:text-primary transition-colors" />
-                <Input
-                    placeholder={activeTab === 'team' ? "Rechercher un employé..." : "Rechercher un motif..."}
-                    className="w-full pl-14 h-16 rounded-[1.25rem] border-none bg-white shadow-sm focus:ring-4 focus:ring-primary/10 text-lg placeholder:text-gray-400"
-                />
+            {/* Status Counters */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                    { key: 'all', label: 'Toutes', color: 'bg-gray-50 text-gray-700 border-gray-100', activeColor: 'bg-gray-900 text-white border-gray-900' },
+                    { key: 'pending', label: 'En attente', color: 'bg-orange-50 text-orange-700 border-orange-100', activeColor: 'bg-orange-500 text-white border-orange-500' },
+                    { key: 'approved', label: 'Approuvées', color: 'bg-green-50 text-green-700 border-green-100', activeColor: 'bg-green-600 text-white border-green-600' },
+                    { key: 'rejected', label: 'Rejetées', color: 'bg-red-50 text-red-700 border-red-100', activeColor: 'bg-red-500 text-white border-red-500' },
+                ].map(s => (
+                    <button
+                        key={s.key}
+                        onClick={() => setStatusFilter(s.key)}
+                        className={cn(
+                            "flex items-center justify-between p-4 rounded-2xl border transition-all duration-200 text-left",
+                            statusFilter === s.key ? s.activeColor : s.color + ' hover:opacity-80'
+                        )}
+                    >
+                        <span className="text-sm font-bold">{s.label}</span>
+                        <span className="text-2xl font-black">{counters[s.key]}</span>
+                    </button>
+                ))}
             </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                    <Input
+                        placeholder={activeTab === 'team' ? "Rechercher un employé..." : "Rechercher un motif ou type..."}
+                        className="w-full pl-12 h-12 rounded-xl border-none bg-white shadow-sm focus:ring-2 focus:ring-primary/20"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                    {search && (
+                        <button onClick={() => setSearch('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Type filter */}
+                <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <select
+                        value={typeFilter}
+                        onChange={(e) => setTypeFilter(e.target.value)}
+                        className="h-12 pl-9 pr-4 rounded-xl border-none bg-white shadow-sm text-sm font-medium text-gray-700 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none min-w-[160px]"
+                    >
+                        <option value="all">Tous les types</option>
+                        {leaveTypes?.map(t => (
+                            <option key={t.id} value={String(t.id)}>{t.name}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Month filter */}
+                {monthOptions.length > 0 && (
+                    <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <select
+                            value={monthFilter}
+                            onChange={(e) => setMonthFilter(e.target.value)}
+                            className="h-12 pl-9 pr-4 rounded-xl border-none bg-white shadow-sm text-sm font-medium text-gray-700 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none min-w-[160px]"
+                        >
+                            <option value="all">Toutes les périodes</option>
+                            {monthOptions.map(m => (
+                                <option key={m.value} value={m.value}>{m.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {/* Clear filters */}
+                {hasActiveFilters && (
+                    <Button
+                        variant="ghost"
+                        onClick={clearFilters}
+                        className="h-12 rounded-xl text-gray-500 hover:text-gray-700 gap-2 whitespace-nowrap"
+                    >
+                        <X className="h-4 w-4" />
+                        Réinitialiser
+                    </Button>
+                )}
+            </div>
+
+            {/* Results count */}
+            {hasActiveFilters && (
+                <p className="text-sm text-gray-500">
+                    <span className="font-bold text-gray-900">{filtered.length}</span> résultat{filtered.length !== 1 ? 's' : ''} sur {leaves?.length || 0}
+                </p>
+            )}
 
             {/* Leaves List */}
             <Card className="border-none shadow-xl shadow-gray-200/50 rounded-[2rem] bg-white overflow-hidden">
                 <CardContent className="p-0">
-                    {leaves && leaves.length > 0 ? (
+                    {filtered.length > 0 ? (
                         <div className="divide-y divide-gray-50">
-                            {leaves.map((leave) => {
+                            {filtered.map((leave) => {
                                 const status = getStatusConfig(leave.status)
-                                const StatusIcon = status.icon
-
                                 return (
                                     <div key={leave.id} className="p-6 flex flex-col md:flex-row md:items-center justify-between hover:bg-gray-50/50 transition-all group">
                                         <div className="flex items-center gap-5">
@@ -213,7 +339,7 @@ export default function LeaveList() {
                                                 <Calendar className="h-7 w-7" />
                                             </div>
                                             <div>
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 flex-wrap">
                                                     <div className="font-extrabold text-gray-900 text-xl tracking-tight">
                                                         {activeTab === 'team' ? (
                                                             <div className="flex flex-col">
@@ -228,7 +354,7 @@ export default function LeaveList() {
                                                         {status.label}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-3 text-sm text-gray-500 mt-1.5 font-medium">
+                                                <div className="flex items-center gap-3 text-sm text-gray-500 mt-1.5 font-medium flex-wrap">
                                                     {activeTab === 'team' && (
                                                         <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider">
                                                             {leave.leave_type_detail?.name}
@@ -238,14 +364,8 @@ export default function LeaveList() {
                                                     <span>•</span>
                                                     <span>Du {format(new Date(leave.start_date), 'dd MMM')} au {format(new Date(leave.end_date), 'dd MMM yyyy')}</span>
                                                 </div>
-                                                {getApprovalMessage(leave) && (
-                                                    <div className="flex items-center gap-1.5 mt-2 text-[10px] font-bold text-orange-500 uppercase tracking-wide">
-                                                        <Clock className="h-3 w-3" />
-                                                        {getApprovalMessage(leave)}
-                                                    </div>
-                                                )}
                                                 {leave.reason && (
-                                                    <p className="text-sm text-gray-400 mt-2 italic line-clamp-1 max-w-md">
+                                                    <p className="text-sm text-gray-400 mt-1.5 italic line-clamp-1 max-w-md">
                                                         "{leave.reason}"
                                                     </p>
                                                 )}
@@ -266,10 +386,7 @@ export default function LeaveList() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => {
-                                                            setSelectedLeave(leave)
-                                                            setIsRejectModalOpen(true)
-                                                        }}
+                                                        onClick={() => { setSelectedLeave(leave); setIsRejectModalOpen(true) }}
                                                         className="text-red-600 border-red-200 hover:bg-red-50 rounded-xl"
                                                     >
                                                         Rejeter
@@ -280,10 +397,7 @@ export default function LeaveList() {
                                                     variant="ghost"
                                                     size="sm"
                                                     className="rounded-xl hover:bg-gray-100 group/btn"
-                                                    onClick={() => {
-                                                        setSelectedLeave(leave)
-                                                        setIsDetailModalOpen(true)
-                                                    }}
+                                                    onClick={() => { setSelectedLeave(leave); setIsDetailModalOpen(true) }}
                                                 >
                                                     Détails
                                                     <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover/btn:translate-x-1" />
@@ -296,26 +410,31 @@ export default function LeaveList() {
                         </div>
                     ) : (
                         <div className="flex flex-col items-center justify-center py-24 text-center">
-                            <div className="bg-gray-50 p-6 rounded-[2rem] mb-6 animate-pulse">
+                            <div className="bg-gray-50 p-6 rounded-[2rem] mb-6">
                                 <Calendar className="h-12 w-12 text-gray-300" />
                             </div>
-                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">Aucun congé trouvé</h3>
+                            <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                                {hasActiveFilters ? 'Aucun résultat' : 'Aucun congé trouvé'}
+                            </h3>
                             <p className="text-gray-500 mt-2 max-w-xs font-medium">
-                                {activeTab === 'team'
-                                    ? "Toutes les demandes ont été traitées ou l'équipe est au complet."
-                                    : "Vous n'avez pas encore soumis de demande de congé."}
+                                {hasActiveFilters
+                                    ? "Essayez de modifier vos filtres."
+                                    : activeTab === 'team'
+                                        ? "Toutes les demandes ont été traitées."
+                                        : "Vous n'avez pas encore soumis de demande."}
                             </p>
+                            {hasActiveFilters && (
+                                <Button variant="outline" onClick={clearFilters} className="mt-4 rounded-xl">
+                                    Réinitialiser les filtres
+                                </Button>
+                            )}
                         </div>
                     )}
                 </CardContent>
             </Card>
 
             {/* Modal: Nouvelle Demande */}
-            <Modal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title="Demande de Congé"
-            >
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Demande de Congé">
                 <form onSubmit={handleCreateRequest} className="space-y-6">
                     <div className="space-y-2">
                         <label className="text-sm font-bold text-gray-700 ml-1">Type de congé</label>
@@ -366,19 +485,10 @@ export default function LeaveList() {
                     </div>
 
                     <div className="pt-4 flex gap-3">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setIsModalOpen(false)}
-                            className="flex-1 h-14 rounded-2xl"
-                        >
+                        <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="flex-1 h-14 rounded-2xl">
                             Annuler
                         </Button>
-                        <Button
-                            type="submit"
-                            className="flex-1 h-14 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20"
-                            disabled={createMutation.isPending}
-                        >
+                        <Button type="submit" className="flex-1 h-14 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20" disabled={createMutation.isPending}>
                             {createMutation.isPending ? "Envoi..." : "Envoyer la demande"}
                         </Button>
                     </div>
@@ -386,11 +496,7 @@ export default function LeaveList() {
             </Modal>
 
             {/* Modal: Rejet */}
-            <Modal
-                isOpen={isRejectModalOpen}
-                onClose={() => setIsRejectModalOpen(false)}
-                title="Motif du rejet"
-            >
+            <Modal isOpen={isRejectModalOpen} onClose={() => setIsRejectModalOpen(false)} title="Motif du rejet">
                 <div className="space-y-6">
                     <p className="text-gray-500 font-medium">
                         Veuillez indiquer pourquoi la demande de <span className="font-bold text-gray-900">{selectedLeave?.employee_detail?.full_name}</span> est rejetée.
@@ -402,11 +508,7 @@ export default function LeaveList() {
                         onChange={(e) => setRejectionReason(e.target.value)}
                     />
                     <div className="flex gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsRejectModalOpen(false)}
-                            className="flex-1 h-14 rounded-2xl"
-                        >
+                        <Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-14 rounded-2xl">
                             Annuler
                         </Button>
                         <Button
@@ -420,15 +522,10 @@ export default function LeaveList() {
                 </div>
             </Modal>
 
-            {/* Modal: Détails du Congé */}
-            <Modal
-                isOpen={isDetailModalOpen}
-                onClose={() => setIsDetailModalOpen(false)}
-                title="Détails de la demande"
-            >
+            {/* Modal: Détails */}
+            <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} title="Détails de la demande">
                 {selectedLeave && (
                     <div className="space-y-8">
-                        {/* Header Status */}
                         <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[2rem]">
                             <div className="flex items-center gap-4">
                                 <div className={cn(
@@ -439,13 +536,8 @@ export default function LeaveList() {
                                     <Calendar className="h-8 w-8" />
                                 </div>
                                 <div>
-                                    <h4 className="font-black text-gray-900 text-xl tracking-tight">
-                                        {selectedLeave.leave_type_detail?.name}
-                                    </h4>
-                                    <div className={cn(
-                                        "inline-flex items-center px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-black mt-1",
-                                        getStatusConfig(selectedLeave.status).color
-                                    )}>
+                                    <h4 className="font-black text-gray-900 text-xl tracking-tight">{selectedLeave.leave_type_detail?.name}</h4>
+                                    <div className={cn("inline-flex items-center px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-black mt-1", getStatusConfig(selectedLeave.status).color)}>
                                         {getStatusConfig(selectedLeave.status).label}
                                     </div>
                                 </div>
@@ -456,13 +548,12 @@ export default function LeaveList() {
                             </div>
                         </div>
 
-                        {/* Info Grid */}
                         <div className="grid grid-cols-2 gap-6 px-2">
                             <div className="space-y-1">
                                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Demandeur</span>
                                 <p className="font-bold text-gray-900 flex flex-col pt-1">
                                     <span>{selectedLeave.employee_detail?.full_name}</span>
-                                    <span className="text-[10px] text-gray-400 font-medium tracking-normal mt-0.5 font-mono opacity-80 uppercase">#{selectedLeave.employee_detail?.employee_id}</span>
+                                    <span className="text-[10px] text-gray-400 font-mono opacity-80 uppercase mt-0.5">#{selectedLeave.employee_detail?.employee_id}</span>
                                 </p>
                             </div>
                             <div className="space-y-1">
@@ -473,20 +564,20 @@ export default function LeaveList() {
                             </div>
                         </div>
 
-                        {/* Reason Section */}
-                        <div className="space-y-2 px-2">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Motif du collaborateur</span>
-                            <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 text-gray-700 italic text-sm leading-relaxed">
-                                "{selectedLeave.reason || "Aucun motif fourni"}"
+                        {selectedLeave.reason && (
+                            <div className="space-y-2 px-2">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Motif</span>
+                                <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 text-gray-700 italic text-sm leading-relaxed">
+                                    "{selectedLeave.reason}"
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        {/* Rejection/Approval Details */}
                         {selectedLeave.status === 'rejected' && (
-                            <div className="space-y-2 px-2 animate-in slide-in-from-top-2 duration-300">
+                            <div className="space-y-2 px-2">
                                 <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Raison du rejet</span>
                                 <div className="bg-red-50/50 p-4 rounded-2xl border border-red-100/50 text-red-700 font-medium text-sm leading-relaxed">
-                                    {selectedLeave.rejection_reason || "Aucune raison spécifiée par le responsable."}
+                                    {selectedLeave.rejection_reason || "Aucune raison spécifiée."}
                                 </div>
                             </div>
                         )}
@@ -502,11 +593,7 @@ export default function LeaveList() {
                             </div>
                         )}
 
-                        <Button
-                            variant="outline"
-                            onClick={() => setIsDetailModalOpen(false)}
-                            className="w-full h-14 rounded-2xl border-gray-100 bg-gray-50/50 hover:bg-gray-100 transition-colors"
-                        >
+                        <Button variant="outline" onClick={() => setIsDetailModalOpen(false)} className="w-full h-14 rounded-2xl border-gray-100 bg-gray-50/50">
                             Fermer
                         </Button>
                     </div>

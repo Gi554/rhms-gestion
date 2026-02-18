@@ -1,34 +1,132 @@
-import { useQuery } from '@tanstack/react-query'
-import { Calendar as CalendarIcon, Clock, Filter, Search, Download, MoreHorizontal, User } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useEffect, useMemo } from 'react'
+import { Calendar as CalendarIcon, Clock, Filter, Search, Download, MoreHorizontal, User, Play, Square, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api-client'
 import { cn } from '@/lib/utils'
-import { format } from 'date-fns'
+import { format, differenceInSeconds } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useOutletContext } from 'react-router-dom'
+import { toast } from 'sonner'
 
 export default function AttendanceList() {
     const { userProfile } = useOutletContext()
+    const queryClient = useQueryClient()
 
     // Roles
     const isAdmin = userProfile?.is_superuser || userProfile?.is_staff
     const userRole = userProfile?.organizations?.[0]?.role
-    console.log("DEBUG - User Profile:", userProfile)
-    console.log("DEBUG - User Role:", userRole)
     const isManager = userRole === 'admin' || userRole === 'manager' || userRole === 'owner' || isAdmin
-    console.log("DEBUG - Is Manager:", isManager)
+
+    // Filters state
+    const [search, setSearch] = useState('')
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const now = new Date()
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    })
+
+    // Timer state
+    const [elapsedSeconds, setElapsedSeconds] = useState(0)
+
+    // Fetch attendance status (for check-in/out)
+    const { data: attendanceStatus } = useQuery({
+        queryKey: ['attendance-status', userProfile?.id],
+        queryFn: async () => {
+            const res = await api.getAttendanceStatus()
+            return res.data
+        },
+        enabled: !!userProfile?.employee_profile
+    })
+
+    // Timer effect
+    useEffect(() => {
+        let interval
+        if (attendanceStatus?.is_clocked_in && attendanceStatus.check_in) {
+            const startTime = new Date()
+            const [hours, minutes, seconds] = attendanceStatus.check_in.split(':')
+            startTime.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds))
+            const updateTimer = () => {
+                const now = new Date()
+                const diff = Math.max(0, differenceInSeconds(now, startTime))
+                setElapsedSeconds(diff)
+            }
+            updateTimer()
+            interval = setInterval(updateTimer, 1000)
+        } else {
+            setElapsedSeconds(0)
+        }
+        return () => clearInterval(interval)
+    }, [attendanceStatus])
+
+    const formatTimer = (totalSeconds) => {
+        const h = Math.floor(totalSeconds / 3600)
+        const m = Math.floor((totalSeconds % 3600) / 60)
+        const s = totalSeconds % 60
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    }
+
+    // Check-in / Check-out mutations
+    const checkInMutation = useMutation({
+        mutationFn: () => api.checkIn({}),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['attendance-status'] })
+            queryClient.invalidateQueries({ queryKey: ['attendance-list'] })
+            toast.success("Pointage à l'arrivée enregistré !")
+        },
+        onError: (err) => toast.error(err.response?.data?.error || "Erreur lors du pointage")
+    })
+
+    const checkOutMutation = useMutation({
+        mutationFn: () => api.checkOut({}),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['attendance-status'] })
+            queryClient.invalidateQueries({ queryKey: ['attendance-list'] })
+            toast.success("Pointage au départ enregistré !")
+        },
+        onError: (err) => toast.error(err.response?.data?.error || "Erreur lors du pointage")
+    })
+
+    // Build API params with month filter
+    const [year, month] = selectedMonth.split('-')
+    const apiParams = isManager
+        ? { date__year: year, date__month: month }
+        : { date__year: year, date__month: month }
 
     const { data: attendances, isLoading } = useQuery({
-        queryKey: ['attendance-list', userProfile?.id, isManager],
+        queryKey: ['attendance-list', userProfile?.id, isManager, selectedMonth],
         queryFn: async () => {
-            // Si manager/admin, on récupère tout, sinon juste les siennes
-            const params = isManager ? {} : { role: 'my_attendance' }
-            const res = await api.getAttendances(params)
+            const res = await api.getAttendances(apiParams)
             return res.data.results || res.data
         }
     })
+
+    // Client-side search filter
+    const filtered = useMemo(() => {
+        if (!attendances) return []
+        if (!search.trim()) return attendances
+        const q = search.toLowerCase()
+        return attendances.filter(a =>
+            a.employee_detail?.full_name?.toLowerCase().includes(q) ||
+            a.employee_detail?.employee_id?.toLowerCase().includes(q) ||
+            a.date?.includes(q) ||
+            a.status?.toLowerCase().includes(q)
+        )
+    }, [attendances, search])
+
+    // Generate month options (last 12 months)
+    const monthOptions = useMemo(() => {
+        const options = []
+        const now = new Date()
+        for (let i = 0; i < 12; i++) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+            const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+            const label = format(d, 'MMMM yyyy', { locale: fr })
+            options.push({ value, label })
+        }
+        return options
+    }, [])
 
     if (isLoading) {
         return (
@@ -57,26 +155,98 @@ export default function AttendanceList() {
                         <Download className="mr-2 h-4 w-4" />
                         Exporter
                     </Button>
-                    <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-11 px-6 shadow-lg shadow-primary/20">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        Calendrier
-                    </Button>
                 </div>
             </div>
 
-            {/* Filters Wrap */}
+            {/* Check-in / Check-out Card (for employees) */}
+            {!isManager && (
+                <Card className={cn(
+                    "border-none shadow-sm rounded-3xl overflow-hidden",
+                    attendanceStatus?.is_clocked_in ? "bg-[#032f20]" : "bg-white"
+                )}>
+                    <CardContent className="p-6">
+                        {!userProfile?.employee_profile ? (
+                            <div className="flex items-center gap-3 text-orange-600">
+                                <AlertCircle className="h-5 w-5" />
+                                <span className="text-sm font-medium">Votre compte n'est pas lié à un profil employé. Contactez un administrateur.</span>
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-between gap-6">
+                                <div>
+                                    <div className={cn(
+                                        "text-sm font-bold uppercase tracking-widest mb-1",
+                                        attendanceStatus?.is_clocked_in ? "text-emerald-400" : "text-gray-400"
+                                    )}>
+                                        {attendanceStatus?.is_clocked_in ? "⬤ En poste" : "○ Hors poste"}
+                                    </div>
+                                    <div className={cn(
+                                        "text-4xl font-mono font-bold tracking-wider",
+                                        attendanceStatus?.is_clocked_in ? "text-white" : "text-gray-900"
+                                    )}>
+                                        {formatTimer(elapsedSeconds)}
+                                    </div>
+                                    {attendanceStatus?.check_in && (
+                                        <div className={cn(
+                                            "text-xs mt-1",
+                                            attendanceStatus?.is_clocked_in ? "text-white/50" : "text-gray-400"
+                                        )}>
+                                            Arrivée : {attendanceStatus.check_in}
+                                            {attendanceStatus.check_out && ` · Départ : ${attendanceStatus.check_out}`}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex gap-3">
+                                    {attendanceStatus?.is_clocked_in ? (
+                                        <Button
+                                            size="lg"
+                                            className="rounded-2xl bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 h-14 px-8"
+                                            onClick={() => checkOutMutation.mutate()}
+                                            disabled={checkOutMutation.isPending}
+                                        >
+                                            <Square className="mr-2 h-5 w-5 fill-current" />
+                                            Pointer le départ
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            size="lg"
+                                            className="rounded-2xl bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 h-14 px-8"
+                                            onClick={() => checkInMutation.mutate()}
+                                            disabled={checkInMutation.isPending || (attendanceStatus?.check_out && !attendanceStatus.is_clocked_in)}
+                                        >
+                                            <Play className="mr-2 h-5 w-5 fill-current" />
+                                            {attendanceStatus?.check_out ? "Journée terminée" : "Pointer l'arrivée"}
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Filters */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
                     <Input
-                        placeholder="Rechercher une date, un employé ou un statut..."
+                        placeholder="Rechercher par nom, ID ou statut..."
                         className="w-full pl-12 h-12 rounded-xl border-none bg-white shadow-sm focus:ring-2 focus:ring-primary/20"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <Button variant="outline" className="rounded-xl h-12 bg-white border-gray-200 px-6">
-                    <Filter className="mr-2 h-4 w-4" />
-                    Filtrer par mois
-                </Button>
+                <div className="relative">
+                    <Filter className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <select
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        className="h-12 pl-10 pr-4 rounded-xl border-none bg-white shadow-sm text-sm font-medium text-gray-700 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer appearance-none min-w-[180px]"
+                    >
+                        {monthOptions.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {/* Attendance Table */}
@@ -90,11 +260,10 @@ export default function AttendanceList() {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pointage</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Durée</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {attendances?.map((attendance) => (
+                                {filtered?.map((attendance) => (
                                     <tr key={attendance.id} className="hover:bg-gray-50/50 transition-colors group">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-3">
@@ -130,7 +299,9 @@ export default function AttendanceList() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2">
                                                 <Clock className="h-4 w-4 text-primary" />
-                                                <span className="font-bold text-gray-900">{parseFloat(attendance.hours_worked).toFixed(1)}h</span>
+                                                <span className="font-bold text-gray-900">
+                                                    {attendance.hours_worked ? `${parseFloat(attendance.hours_worked).toFixed(1)}h` : '--'}
+                                                </span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -143,16 +314,11 @@ export default function AttendanceList() {
                                                     attendance.status === 'late' ? 'En retard' : 'Absent'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Button variant="ghost" size="icon" className="text-gray-400 hover:text-primary hover:bg-primary/5 rounded-full">
-                                                <MoreHorizontal className="h-5 w-5" />
-                                            </Button>
-                                        </td>
                                     </tr>
                                 ))}
-                                {!attendances?.length && (
+                                {!filtered?.length && (
                                     <tr>
-                                        <td colSpan="5" className="px-6 py-12 text-center text-gray-400">
+                                        <td colSpan="4" className="px-6 py-12 text-center text-gray-400">
                                             Aucun enregistrement trouvé pour cette période.
                                         </td>
                                     </tr>

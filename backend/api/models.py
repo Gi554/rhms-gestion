@@ -27,6 +27,7 @@ class Organization(models.Model):
     
     # Branding
     logo = models.ImageField(upload_to='organizations/logos/', null=True, blank=True)
+    digital_stamp = models.ImageField(upload_to='organizations/stamps/', null=True, blank=True) # Cachet/Signature
     primary_color = models.CharField(max_length=7, default='#4F46E5')  # Hex color
     
     # Subscription
@@ -37,6 +38,7 @@ class Organization(models.Model):
     email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
+    siret = models.CharField(max_length=20, blank=True) # SIRET
     website = models.URLField(blank=True)
     
     # Settings

@@ -54,9 +54,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = [
-            'id', 'name', 'slug', 'description', 'logo',
+            'id', 'name', 'slug', 'description', 'logo', 'digital_stamp',
             'primary_color', 'plan', 'max_employees', 'employee_count',
-            'email', 'phone', 'address', 'website',
+            'email', 'phone', 'address', 'website', 'siret',
             'timezone', 'date_format', 'currency',
             'is_active', 'created_at', 'updated_at'
         ]

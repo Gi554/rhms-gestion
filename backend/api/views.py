@@ -36,6 +36,18 @@ class MeViewSet(viewsets.ViewSet):
         serializer = UserProfileSerializer(request.user)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['patch'], url_path='update-profile')
+    def update_profile(self, request):
+        """Mise à jour des informations personnelles"""
+        user = request.user
+        allowed_fields = ['first_name', 'last_name', 'email']
+        for field in allowed_fields:
+            if field in request.data:
+                setattr(user, field, request.data[field])
+        user.save()
+        serializer = UserProfileSerializer(user)
+        return Response(serializer.data)
+
     @action(detail=False, methods=['post'], url_path='change-password')
     def change_password(self, request):
         """Réinitialisation du mot de passe"""
@@ -576,6 +588,52 @@ class PayrollViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     ordering_fields = ['year', 'month']
     ordering = ['-year', '-month']
     
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsOrganizationAdmin])
+    def generate(self, request):
+        """Génère les fiches de paie pour tous les employés pour un mois/année donné"""
+        month = request.data.get('month')
+        year = request.data.get('year')
+        organization = self.get_organization()
+        
+        if not month or not year:
+            return Response({"error": "Le mois et l'année sont requis."}, status=400)
+            
+        employees = Employee.objects.filter(organization=organization, is_active=True)
+        created_count = 0
+        skipped_count = 0
+        
+        for employee in employees:
+            # Vérifier si elle existe déjà
+            if Payroll.objects.filter(employee=employee, month=month, year=year).exists():
+                skipped_count += 1
+                continue
+            
+            # Calcul basique
+            base_salary = (employee.salary or 0) / 12
+            # Simulation : 22% de retenues, 5% de bonus
+            bonuses = base_salary * 0.05
+            deductions = base_salary * 0.22
+            net_salary = base_salary + bonuses - deductions
+            
+            Payroll.objects.create(
+                organization=organization,
+                employee=employee,
+                month=month,
+                year=year,
+                base_salary=base_salary,
+                bonuses=bonuses,
+                deductions=deductions,
+                net_salary=net_salary,
+                status='draft'
+            )
+            created_count += 1
+            
+        return Response({
+            "message": f"Génération terminée: {created_count} créées, {skipped_count} déjà existantes.",
+            "created": created_count,
+            "skipped": skipped_count
+        })
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_payrolls(self, request):
         """Mes fiches de paie"""

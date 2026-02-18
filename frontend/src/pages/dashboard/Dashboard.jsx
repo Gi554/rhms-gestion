@@ -163,6 +163,41 @@ export default function Dashboard() {
         enabled: isManager || isAdmin
     })
 
+    // 7. Employee personal stats: monthly hours
+    const now = new Date()
+    const { data: myMonthAttendances } = useQuery({
+        queryKey: ['my-month-attendance', userProfile?.id, now.getMonth()],
+        queryFn: async () => {
+            const res = await api.getAttendances({
+                date__year: now.getFullYear(),
+                date__month: now.getMonth() + 1
+            })
+            return res.data.results || res.data
+        },
+        enabled: !isManager && !isAdmin && !!userProfile?.employee_profile
+    })
+
+    // 8. Employee personal stats: leave balance
+    const { data: myLeaves } = useQuery({
+        queryKey: ['my-leaves-balance', userProfile?.id],
+        queryFn: async () => {
+            const res = await api.getLeaveRequests({ my_requests: true })
+            return res.data.results || res.data
+        },
+        enabled: !isManager && !isAdmin && !!userProfile?.employee_profile
+    })
+
+    // Compute employee stats
+    const myMonthHours = myMonthAttendances
+        ? myMonthAttendances.reduce((sum, a) => sum + (parseFloat(a.hours_worked) || 0), 0).toFixed(1)
+        : null
+    const myPendingLeaves = myLeaves
+        ? myLeaves.filter(l => l.status === 'pending').length
+        : null
+    const myAttendanceRate = myMonthAttendances && myMonthAttendances.length > 0
+        ? Math.round((myMonthAttendances.filter(a => a.status === 'present').length / myMonthAttendances.length) * 100)
+        : null
+
     // 7. Time Tracker Logic
     const { data: attendanceStatus, isLoading: statusLoading } = useQuery({
         queryKey: ['attendance-status', userProfile?.id],
@@ -288,32 +323,32 @@ export default function Dashboard() {
                     <>
                         <StatCard
                             title="Heures ce mois"
-                            value="124.5"
-                            trend="+12%"
-                            label="vs mois précédent"
+                            value={myMonthHours !== null ? `${myMonthHours}h` : '--'}
+                            trend={myMonthHours !== null ? `${myMonthAttendances?.length || 0} jours` : 'Chargement'}
+                            label="Pointés ce mois"
                             color="bg-primary"
                             textColor="text-white"
                             loading={isLoading}
                         />
                         <StatCard
-                            title="Congés restants"
-                            value="12"
-                            trend="Jours"
-                            label="Solde annuel"
-                            loading={isLoading}
-                        />
-                        <StatCard
                             title="Demandes actives"
-                            value="1"
-                            trend="En attente"
-                            label="Congés / Frais"
+                            value={myPendingLeaves !== null ? myPendingLeaves : '--'}
+                            trend={myPendingLeaves === 0 ? 'Aucune' : 'En attente'}
+                            label="Congés soumis"
                             loading={isLoading}
                         />
                         <StatCard
-                            title="Performance"
-                            value="98%"
-                            trend="+1%"
-                            label="Objectifs atteints"
+                            title="Jours présents"
+                            value={myMonthAttendances ? myMonthAttendances.filter(a => a.status === 'present').length : '--'}
+                            trend={`/ ${myMonthAttendances?.length || 0} jours`}
+                            label="Ce mois-ci"
+                            loading={isLoading}
+                        />
+                        <StatCard
+                            title="Taux de présence"
+                            value={myAttendanceRate !== null ? `${myAttendanceRate}%` : '--'}
+                            trend={myAttendanceRate !== null ? (myAttendanceRate >= 90 ? '✓ Excellent' : myAttendanceRate >= 75 ? 'Bon' : 'À améliorer') : 'Chargement'}
+                            label="Ce mois-ci"
                             loading={isLoading}
                         />
                     </>
