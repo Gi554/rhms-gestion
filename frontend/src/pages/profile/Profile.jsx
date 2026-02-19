@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { User, Lock, Mail, Shield, Camera, Pencil, Check, X } from 'lucide-react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { User, Lock, Mail, Shield, Camera, Pencil, Check, X, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ export default function Profile() {
         first_name: userProfile?.first_name || '',
         last_name: userProfile?.last_name || '',
         email: userProfile?.email || '',
+        position: userProfile?.employee_profile?.position || '',
     });
 
     const fullName = userProfile?.first_name
@@ -53,6 +54,28 @@ export default function Profile() {
     const handleProfileSubmit = (e) => {
         e.preventDefault();
         updateProfileMutation.mutate(profileForm);
+    };
+
+    // Upload photo mutation
+    const uploadPhotoMutation = useMutation({
+        mutationFn: (file) => {
+            const formData = new FormData();
+            formData.append('photo', file);
+            return api.uploadPhoto(formData);
+        },
+        onSuccess: () => {
+            toast.success('Photo de profil mise à jour !');
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+            window.dispatchEvent(new Event('profile-updated'));
+        },
+        onError: () => toast.error("Erreur lors de l'upload de la photo.")
+    });
+
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            uploadPhotoMutation.mutate(file);
+        }
     };
 
     const handlePasswordChange = async (e) => {
@@ -96,9 +119,21 @@ export default function Profile() {
                                         className="h-full w-full object-cover"
                                     />
                                 </div>
-                                <button className="absolute bottom-1 right-1 p-2 bg-primary text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                <label className="absolute bottom-1 right-1 p-2 bg-primary text-white rounded-full shadow-lg cursor-pointer hover:bg-primary/90 transition-all group-hover:scale-110">
                                     <Camera className="h-4 w-4" />
-                                </button>
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                        disabled={uploadPhotoMutation.isPending}
+                                    />
+                                </label>
+                                {uploadPhotoMutation.isPending && (
+                                    <div className="absolute inset-0 bg-white/60 rounded-full flex items-center justify-center animate-pulse">
+                                        <Upload className="h-8 w-8 text-primary animate-bounce" />
+                                    </div>
+                                )}
                             </div>
                             <div className="mt-4">
                                 <h2 className="text-xl font-bold text-gray-900">{fullName}</h2>
@@ -148,6 +183,7 @@ export default function Profile() {
                                             first_name: userProfile?.first_name || '',
                                             last_name: userProfile?.last_name || '',
                                             email: userProfile?.email || '',
+                                            position: userProfile?.employee_profile?.position || '',
                                         });
                                         setIsEditingProfile(true);
                                     }}
@@ -187,6 +223,14 @@ export default function Profile() {
                                             required
                                         />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700">Poste</label>
+                                        <Input
+                                            value={profileForm.position}
+                                            onChange={(e) => setProfileForm({ ...profileForm, position: e.target.value })}
+                                            placeholder="Ex: Directrice Générale"
+                                        />
+                                    </div>
                                     <div className="flex gap-3 pt-4 border-t border-gray-50 mt-6">
                                         <Button
                                             type="button"
@@ -220,6 +264,10 @@ export default function Profile() {
                                     <div className="col-span-2">
                                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Email</p>
                                         <p className="font-semibold text-gray-900">{userProfile?.email || '—'}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Poste</p>
+                                        <p className="font-semibold text-gray-900">{userProfile?.employee_profile?.position || '—'}</p>
                                     </div>
                                 </div>
                             )}

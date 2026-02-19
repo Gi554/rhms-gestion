@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { Search, Bell, Mail } from 'lucide-react'
+import { Search, Mail } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
+import NotificationBell from './NotificationBell'
 
 export default function Header({ onLogout, userProfile }) {
     const fullName = userProfile?.first_name
@@ -43,10 +44,7 @@ export default function Header({ onLogout, userProfile }) {
                     <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-white text-gray-500 hover:text-primary hover:bg-white shadow-sm border border-gray-100">
                         <Mail className="h-5 w-5" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-white text-gray-500 hover:text-primary hover:bg-white shadow-sm border border-gray-100 relative">
-                        <Bell className="h-5 w-5" />
-                        <span className="absolute top-2 right-2.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white" />
-                    </Button>
+                    <NotificationBell />
                 </div>
 
                 {/* User Profile */}

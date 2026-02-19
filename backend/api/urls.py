@@ -7,7 +7,7 @@ from .views import (
     DepartmentViewSet, EmployeeViewSet,
     LeaveTypeViewSet, LeaveRequestViewSet,
     AttendanceViewSet, DocumentViewSet, PayrollViewSet,
-    ProjectViewSet, EventViewSet, MeViewSet
+    ProjectViewSet, EventViewSet, MeViewSet, NotificationViewSet
 )
 from .health import health_check
 
@@ -39,6 +39,7 @@ router.register(r'payrolls', PayrollViewSet, basename='payroll')
 # Widgets
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'events', EventViewSet, basename='event')
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     # Auth endpoints

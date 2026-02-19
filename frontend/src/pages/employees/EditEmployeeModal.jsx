@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2 } from 'lucide-react';
 
 export default function EditEmployeeModal({ isOpen, onClose, employee, organizationId }) {
     const queryClient = useQueryClient();
@@ -16,6 +17,7 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
         position: '',
         status: 'active',
         department: '',
+        manager: '',
         hire_date: '',
     });
 
@@ -30,12 +32,13 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
                 position: employee.position || '',
                 status: employee.status || 'active',
                 department: employee.department || '',
+                manager: employee.manager || '',
                 hire_date: employee.hire_date || '',
             });
         }
     }, [employee]);
 
-    // Fetch departments for the select
+    // Fetch departments
     const { data: departments } = useQuery({
         queryKey: ['departments', organizationId],
         queryFn: async () => {
@@ -45,11 +48,22 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
         enabled: !!organizationId && isOpen
     });
 
+    // Fetch employees for manager selection
+    const { data: allEmployees } = useQuery({
+        queryKey: ['employees-minimal', organizationId],
+        queryFn: async () => {
+            const res = await api.getEmployees({ organization: organizationId, page_size: 100 });
+            return res.data.results || res.data;
+        },
+        enabled: !!organizationId && isOpen
+    });
+
     const mutation = useMutation({
         mutationFn: (data) => api.patchEmployee(employee.id, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
-            toast.success('Employé mis à jour avec succès !');
+            queryClient.invalidateQueries({ queryKey: ['employee', employee.id] });
+            toast.success('Employé mis à jour !');
             onClose();
         },
         onError: (error) => {
@@ -72,52 +86,55 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
     const handleSubmit = (e) => {
         e.preventDefault();
         const payload = { ...formData };
-        if (!payload.department) delete payload.department;
+        if (!payload.department) payload.department = null;
+        if (!payload.manager) payload.manager = null;
         mutation.mutate(payload);
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Modifier — ${employee?.first_name} ${employee?.last_name}`}>
-            <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Prénom</label>
-                        <Input name="first_name" value={formData.first_name} onChange={handleChange} required />
+        <Modal isOpen={isOpen} onClose={onClose} title={`Modifier — ${employee?.full_name}`} maxWidth="max-w-xl">
+            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Prénom</label>
+                        <Input name="first_name" value={formData.first_name} onChange={handleChange} required className="h-10 rounded-xl" />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Nom</label>
-                        <Input name="last_name" value={formData.last_name} onChange={handleChange} required />
-                    </div>
-                </div>
-
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Email</label>
-                    <Input name="email" type="email" value={formData.email} onChange={handleChange} required />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Téléphone</label>
-                        <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+33 6 00 00 00 00" />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Date d'embauche</label>
-                        <Input name="hire_date" type="date" value={formData.hire_date} onChange={handleChange} />
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nom</label>
+                        <Input name="last_name" value={formData.last_name} onChange={handleChange} required className="h-10 rounded-xl" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Poste</label>
-                        <Input name="position" value={formData.position} onChange={handleChange} placeholder="Développeur" required />
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Email professionnel</label>
+                        <Input name="email" type="email" value={formData.email} onChange={handleChange} required className="h-10 rounded-xl" />
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-700">Département</label>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Téléphone</label>
+                        <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+33 6..." className="h-10 rounded-xl" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Poste</label>
+                        <Input name="position" value={formData.position} onChange={handleChange} placeholder="ex: Designer" required className="h-10 rounded-xl" />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date d'embauche</label>
+                        <Input name="hire_date" type="date" value={formData.hire_date} onChange={handleChange} className="h-10 rounded-xl" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Département</label>
                         <select
                             name="department"
                             value={formData.department}
                             onChange={handleChange}
-                            className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium outline-none focus:ring-1 focus:ring-primary/20 transition-all font-bold"
                         >
                             <option value="">Non assigné</option>
                             {departments?.map(d => (
@@ -125,15 +142,29 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
                             ))}
                         </select>
                     </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Manager Direct</label>
+                        <select
+                            name="manager"
+                            value={formData.manager}
+                            onChange={handleChange}
+                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium outline-none focus:ring-1 focus:ring-primary/20 transition-all font-bold"
+                        >
+                            <option value="">Aucun manager</option>
+                            {allEmployees?.filter(emp => emp.id !== employee?.id).map(emp => (
+                                <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
-                <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Statut</label>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Statut</label>
                     <select
                         name="status"
                         value={formData.status}
                         onChange={handleChange}
-                        className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-bold outline-none"
                     >
                         <option value="active">Actif</option>
                         <option value="inactive">Inactif</option>
@@ -143,15 +174,15 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
                 </div>
 
                 <div className="pt-4 flex gap-3">
-                    <Button type="button" variant="outline" onClick={onClose} className="flex-1 rounded-xl">
+                    <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl font-bold h-12">
                         Annuler
                     </Button>
                     <Button
                         type="submit"
-                        className="flex-1 bg-primary text-white rounded-xl shadow-lg shadow-primary/20"
+                        className="flex-[2] bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 font-black h-12"
                         disabled={mutation.isPending}
                     >
-                        {mutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                        {mutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Enregistrer les modifications'}
                     </Button>
                 </div>
             </form>

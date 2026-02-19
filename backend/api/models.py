@@ -487,3 +487,36 @@ class Project(models.Model):
         
     def __str__(self):
         return self.name
+
+
+class Notification(models.Model):
+    """Système de notifications Premium"""
+    
+    TYPE_LEAVE = 'leave'
+    TYPE_PAYROLL = 'payroll'
+    TYPE_DOCUMENT = 'document'
+    TYPE_SYSTEM = 'system'
+    
+    TYPE_CHOICES = [
+        (TYPE_LEAVE, 'Congé'),
+        (TYPE_PAYROLL, 'Paie'),
+        (TYPE_DOCUMENT, 'Document'),
+        (TYPE_SYSTEM, 'Système'),
+    ]
+    
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='sent_notifications')
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_SYSTEM)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    link = models.CharField(max_length=500, blank=True, null=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Notification'
+        verbose_name_plural = 'Notifications'
+        
+    def __str__(self):
+        return f"{self.type} - {self.recipient.username} - {self.title}"

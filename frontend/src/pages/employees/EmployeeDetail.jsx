@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import {
-    ArrowLeft, Mail, Phone, Calendar, Building2, User,
-    Clock, CheckCircle2, XCircle, AlertCircle, Briefcase, Hash
+    Clock, CheckCircle2, XCircle, AlertCircle, Briefcase, Hash,
+    ShieldCheck, TrendingUp, ChevronRight
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -174,8 +174,39 @@ export default function EmployeeDetail() {
                                 <Briefcase className="h-4 w-4 text-gray-400 shrink-0" />
                                 <span className="text-gray-600 capitalize">{employee.employment_type || '—'}</span>
                             </div>
+
+                            {employee.manager_detail && (
+                                <div
+                                    className="flex items-center gap-3 text-sm cursor-pointer hover:bg-slate-50 p-2 -m-2 rounded-xl transition-colors"
+                                    onClick={() => navigate(`/employees/${employee.manager_detail.id}`)}
+                                >
+                                    <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-tighter">Manager Direct</span>
+                                        <span className="text-gray-900 font-bold">{employee.manager_detail.full_name}</span>
+                                    </div>
+                                    <ChevronRight className="h-3 w-3 text-slate-300 ml-auto" />
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
+
+                    {/* Hierarchy Stats */}
+                    {employee.subordinates_count > 0 && (
+                        <Card className="border-none shadow-sm rounded-3xl bg-slate-900 overflow-hidden">
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-12 w-12 rounded-[1rem] bg-white/10 flex items-center justify-center text-white">
+                                        <Users className="h-6 w-6" />
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-black text-white">{employee.subordinates_count}</div>
+                                        <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Subordonnés directs</div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
 
                     {/* This month stats */}
                     <Card className="border-none shadow-sm rounded-3xl bg-[#032f20] overflow-hidden">

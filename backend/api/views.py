@@ -14,7 +14,7 @@ from .models import (
     Department, Employee,
     LeaveType, LeaveRequest,
     Attendance, Document, Payroll,
-    Project, Event
+    Project, Event, Notification
 )
 from .serializers import (
     OrganizationSerializer, OrganizationMemberSerializer,
@@ -22,7 +22,8 @@ from .serializers import (
     EmployeeListSerializer, EmployeeDetailSerializer,
     LeaveTypeSerializer, LeaveRequestListSerializer, LeaveRequestDetailSerializer,
     AttendanceSerializer, DocumentSerializer, PayrollSerializer,
-    ProjectSerializer, EventSerializer, UserProfileSerializer
+    ProjectSerializer, EventSerializer, UserProfileSerializer,
+    NotificationSerializer
 )
 from .permissions import (
     IsOrganizationMember, IsOrganizationAdmin,
@@ -40,11 +41,20 @@ class MeViewSet(viewsets.ViewSet):
     def update_profile(self, request):
         """Mise à jour des informations personnelles"""
         user = request.user
-        allowed_fields = ['first_name', 'last_name', 'email']
-        for field in allowed_fields:
+        
+        # Champs utilisateur de base
+        user_fields = ['first_name', 'last_name', 'email']
+        for field in user_fields:
             if field in request.data:
                 setattr(user, field, request.data[field])
         user.save()
+
+        # Champs profil employé (Poste)
+        if 'position' in request.data and hasattr(user, 'employee_profile'):
+            employee = user.employee_profile
+            employee.position = request.data['position']
+            employee.save()
+            
         serializer = UserProfileSerializer(user)
         return Response(serializer.data)
 
@@ -64,6 +74,23 @@ class MeViewSet(viewsets.ViewSet):
         user.set_password(new_password)
         user.save()
         return Response({"detail": "Mot de passe mis à jour avec succès."})
+
+    @action(detail=False, methods=['post'], url_path='upload-photo')
+    def upload_photo(self, request):
+        """Upload d'une photo de profil"""
+        user = request.user
+        if 'photo' not in request.FILES:
+            return Response({"detail": "Aucun fichier fourni."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not hasattr(user, 'employee_profile'):
+            return Response({"detail": "Pas de profil employé associé."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        employee = user.employee_profile
+        employee.profile_photo = request.FILES['photo']
+        employee.save()
+        
+        serializer = UserProfileSerializer(user)
+        return Response(serializer.data)
 
 
 # ==================== MIXINS ====================
@@ -672,3 +699,27 @@ class ProjectViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOrganizationMember]
     ordering = ['due_date']
     filterset_fields = ['status']
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['type', 'is_read']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user)
+
+    @action(detail=False, methods=['post'], url_path='mark-all-read')
+    def mark_all_read(self, request):
+        self.get_queryset().filter(is_read=False).update(is_read=True)
+        return Response({'status': 'all marked as read'})
+
+    @action(detail=True, methods=['post'], url_path='mark-read')
+    def mark_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        return Response({'status': 'marked as read'})
