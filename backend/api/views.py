@@ -14,7 +14,7 @@ from .models import (
     Department, Employee,
     LeaveType, LeaveRequest,
     Attendance, Document, Payroll,
-    Project, Event
+    Project, Event, Notification
 )
 from .serializers import (
     OrganizationSerializer, OrganizationMemberSerializer,
@@ -22,7 +22,8 @@ from .serializers import (
     EmployeeListSerializer, EmployeeDetailSerializer,
     LeaveTypeSerializer, LeaveRequestListSerializer, LeaveRequestDetailSerializer,
     AttendanceSerializer, DocumentSerializer, PayrollSerializer,
-    ProjectSerializer, EventSerializer, UserProfileSerializer
+    ProjectSerializer, EventSerializer, UserProfileSerializer,
+    NotificationSerializer
 )
 from .permissions import (
     IsOrganizationMember, IsOrganizationAdmin,
@@ -34,6 +35,27 @@ class MeViewSet(viewsets.ViewSet):
     
     def list(self, request):
         serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['patch'], url_path='update-profile')
+    def update_profile(self, request):
+        """Mise à jour des informations personnelles"""
+        user = request.user
+        
+        # Champs utilisateur de base
+        user_fields = ['first_name', 'last_name', 'email']
+        for field in user_fields:
+            if field in request.data:
+                setattr(user, field, request.data[field])
+        user.save()
+
+        # Champs profil employé (Poste)
+        if 'position' in request.data and hasattr(user, 'employee_profile'):
+            employee = user.employee_profile
+            employee.position = request.data['position']
+            employee.save()
+            
+        serializer = UserProfileSerializer(user)
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='change-password')
@@ -52,6 +74,23 @@ class MeViewSet(viewsets.ViewSet):
         user.set_password(new_password)
         user.save()
         return Response({"detail": "Mot de passe mis à jour avec succès."})
+
+    @action(detail=False, methods=['post'], url_path='upload-photo')
+    def upload_photo(self, request):
+        """Upload d'une photo de profil"""
+        user = request.user
+        if 'photo' not in request.FILES:
+            return Response({"detail": "Aucun fichier fourni."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not hasattr(user, 'employee_profile'):
+            return Response({"detail": "Pas de profil employé associé."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        employee = user.employee_profile
+        employee.profile_photo = request.FILES['photo']
+        employee.save()
+        
+        serializer = UserProfileSerializer(user)
+        return Response(serializer.data)
 
 
 # ==================== MIXINS ====================
@@ -576,6 +615,52 @@ class PayrollViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     ordering_fields = ['year', 'month']
     ordering = ['-year', '-month']
     
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsOrganizationAdmin])
+    def generate(self, request):
+        """Génère les fiches de paie pour tous les employés pour un mois/année donné"""
+        month = request.data.get('month')
+        year = request.data.get('year')
+        organization = self.get_organization()
+        
+        if not month or not year:
+            return Response({"error": "Le mois et l'année sont requis."}, status=400)
+            
+        employees = Employee.objects.filter(organization=organization, is_active=True)
+        created_count = 0
+        skipped_count = 0
+        
+        for employee in employees:
+            # Vérifier si elle existe déjà
+            if Payroll.objects.filter(employee=employee, month=month, year=year).exists():
+                skipped_count += 1
+                continue
+            
+            # Calcul basique
+            base_salary = (employee.salary or 0) / 12
+            # Simulation : 22% de retenues, 5% de bonus
+            bonuses = base_salary * 0.05
+            deductions = base_salary * 0.22
+            net_salary = base_salary + bonuses - deductions
+            
+            Payroll.objects.create(
+                organization=organization,
+                employee=employee,
+                month=month,
+                year=year,
+                base_salary=base_salary,
+                bonuses=bonuses,
+                deductions=deductions,
+                net_salary=net_salary,
+                status='draft'
+            )
+            created_count += 1
+            
+        return Response({
+            "message": f"Génération terminée: {created_count} créées, {skipped_count} déjà existantes.",
+            "created": created_count,
+            "skipped": skipped_count
+        })
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_payrolls(self, request):
         """Mes fiches de paie"""
@@ -614,3 +699,27 @@ class ProjectViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsOrganizationMember]
     ordering = ['due_date']
     filterset_fields = ['status']
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['type', 'is_read']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Notification.objects.filter(recipient=self.request.user)
+
+    @action(detail=False, methods=['post'], url_path='mark-all-read')
+    def mark_all_read(self, request):
+        self.get_queryset().filter(is_read=False).update(is_read=True)
+        return Response({'status': 'all marked as read'})
+
+    @action(detail=True, methods=['post'], url_path='mark-read')
+    def mark_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        return Response({'status': 'marked as read'})

@@ -6,6 +6,7 @@ import {
     Calendar,
     Clock,
     FileText,
+    CreditCard,
     Settings,
     HelpCircle,
     User,
@@ -19,6 +20,7 @@ const mainNavigation = [
     { name: 'Départements', href: '/departments', icon: Building2 },
     { name: 'Congés', href: '/leaves', icon: Calendar },
     { name: 'Présences', href: '/attendance', icon: Clock }, // Analytics equivalent
+    { name: 'Paie', href: '/payroll', icon: CreditCard },
     { name: 'Documents', href: '/documents', icon: FileText }, // Team equivalent
 ]
 

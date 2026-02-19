@@ -5,7 +5,7 @@ from .models import (
     Department, Employee,
     LeaveType, LeaveRequest,
     Attendance, Document, Payroll,
-    Project, Event
+    Project, Event, Notification
 )
 
 
@@ -54,9 +54,9 @@ class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = [
-            'id', 'name', 'slug', 'description', 'logo',
+            'id', 'name', 'slug', 'description', 'logo', 'digital_stamp',
             'primary_color', 'plan', 'max_employees', 'employee_count',
-            'email', 'phone', 'address', 'website',
+            'email', 'phone', 'address', 'website', 'siret',
             'timezone', 'date_format', 'currency',
             'is_active', 'created_at', 'updated_at'
         ]
@@ -344,9 +344,17 @@ class PayrollSerializer(serializers.ModelSerializer):
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
+        fields = '__all__'
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
+    
+    class Meta:
+        model = Notification
         fields = [
-            'id', 'organization', 'title', 'description',
-            'start_time', 'end_time', 'link', 'created_at'
+            'id', 'recipient', 'sender', 'sender_name', 'type', 
+            'title', 'message', 'link', 'is_read', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
 

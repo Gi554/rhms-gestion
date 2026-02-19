@@ -1,19 +1,32 @@
 import React, { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { User, Lock, Mail, Shield, Camera } from 'lucide-react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { User, Lock, Mail, Shield, Camera, Pencil, Check, X, Upload } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function Profile() {
-    const { userProfile } = useOutletContext();
+    const { userProfile, onProfileUpdate } = useOutletContext();
+    const queryClient = useQueryClient();
+
+    // Password state
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [passwordData, setPasswordData] = useState({
         old_password: '',
         new_password: '',
         confirm_password: '',
+    });
+
+    // Edit profile state
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [profileForm, setProfileForm] = useState({
+        first_name: userProfile?.first_name || '',
+        last_name: userProfile?.last_name || '',
+        email: userProfile?.email || '',
+        position: userProfile?.employee_profile?.position || '',
     });
 
     const fullName = userProfile?.first_name
@@ -22,14 +35,55 @@ export default function Profile() {
 
     const role = userProfile?.organizations?.[0]?.role || 'Employé';
 
+    // Update profile mutation
+    const updateProfileMutation = useMutation({
+        mutationFn: (data) => api.updateProfile(data),
+        onSuccess: (res) => {
+            toast.success('Profil mis à jour avec succès !');
+            setIsEditingProfile(false);
+            // Invalidate profile query to refresh userProfile in App
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+            // Force re-fetch profile in App.jsx by triggering a page-level refresh
+            window.dispatchEvent(new Event('profile-updated'));
+        },
+        onError: (err) => {
+            toast.error(err.response?.data?.detail || "Erreur lors de la mise à jour.");
+        }
+    });
+
+    const handleProfileSubmit = (e) => {
+        e.preventDefault();
+        updateProfileMutation.mutate(profileForm);
+    };
+
+    // Upload photo mutation
+    const uploadPhotoMutation = useMutation({
+        mutationFn: (file) => {
+            const formData = new FormData();
+            formData.append('photo', file);
+            return api.uploadPhoto(formData);
+        },
+        onSuccess: () => {
+            toast.success('Photo de profil mise à jour !');
+            queryClient.invalidateQueries({ queryKey: ['profile'] });
+            window.dispatchEvent(new Event('profile-updated'));
+        },
+        onError: () => toast.error("Erreur lors de l'upload de la photo.")
+    });
+
+    const handlePhotoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            uploadPhotoMutation.mutate(file);
+        }
+    };
+
     const handlePasswordChange = async (e) => {
         e.preventDefault();
-
         if (passwordData.new_password !== passwordData.confirm_password) {
             toast.error("Les nouveaux mots de passe ne correspondent pas.");
             return;
         }
-
         try {
             await api.changePassword({
                 old_password: passwordData.old_password,
@@ -65,11 +119,22 @@ export default function Profile() {
                                         className="h-full w-full object-cover"
                                     />
                                 </div>
-                                <button className="absolute bottom-1 right-1 p-2 bg-primary text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                <label className="absolute bottom-1 right-1 p-2 bg-primary text-white rounded-full shadow-lg cursor-pointer hover:bg-primary/90 transition-all group-hover:scale-110">
                                     <Camera className="h-4 w-4" />
-                                </button>
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={handlePhotoChange}
+                                        disabled={uploadPhotoMutation.isPending}
+                                    />
+                                </label>
+                                {uploadPhotoMutation.isPending && (
+                                    <div className="absolute inset-0 bg-white/60 rounded-full flex items-center justify-center animate-pulse">
+                                        <Upload className="h-8 w-8 text-primary animate-bounce" />
+                                    </div>
+                                )}
                             </div>
-
                             <div className="mt-4">
                                 <h2 className="text-xl font-bold text-gray-900">{fullName}</h2>
                                 <p className="text-sm font-medium text-primary mt-1">{userProfile?.employee_profile?.position || 'Poste non défini'}</p>
@@ -100,8 +165,116 @@ export default function Profile() {
                     </Card>
                 </div>
 
-                {/* Right Column: Detailed Info & Security */}
+                {/* Right Column */}
                 <div className="md:col-span-2 space-y-8">
+                    {/* Personal Info */}
+                    <Card className="border-none shadow-sm rounded-3xl bg-white overflow-hidden">
+                        <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between">
+                            <CardTitle className="text-xl font-bold flex items-center gap-3">
+                                <User className="h-5 w-5 text-primary" />
+                                Informations personnelles
+                            </CardTitle>
+                            {!isEditingProfile ? (
+                                <Button
+                                    variant="outline"
+                                    className="rounded-xl border-gray-200 gap-2"
+                                    onClick={() => {
+                                        setProfileForm({
+                                            first_name: userProfile?.first_name || '',
+                                            last_name: userProfile?.last_name || '',
+                                            email: userProfile?.email || '',
+                                            position: userProfile?.employee_profile?.position || '',
+                                        });
+                                        setIsEditingProfile(true);
+                                    }}
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                    Modifier
+                                </Button>
+                            ) : null}
+                        </CardHeader>
+                        <CardContent className="p-8">
+                            {isEditingProfile ? (
+                                <form onSubmit={handleProfileSubmit} className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-gray-700">Prénom</label>
+                                            <Input
+                                                value={profileForm.first_name}
+                                                onChange={(e) => setProfileForm({ ...profileForm, first_name: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-gray-700">Nom</label>
+                                            <Input
+                                                value={profileForm.last_name}
+                                                onChange={(e) => setProfileForm({ ...profileForm, last_name: e.target.value })}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700">Email</label>
+                                        <Input
+                                            type="email"
+                                            value={profileForm.email}
+                                            onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-gray-700">Poste</label>
+                                        <Input
+                                            value={profileForm.position}
+                                            onChange={(e) => setProfileForm({ ...profileForm, position: e.target.value })}
+                                            placeholder="Ex: Directrice Générale"
+                                        />
+                                    </div>
+                                    <div className="flex gap-3 pt-4 border-t border-gray-50 mt-6">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            className="rounded-xl gap-2"
+                                            onClick={() => setIsEditingProfile(false)}
+                                        >
+                                            <X className="h-4 w-4" />
+                                            Annuler
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            className="bg-primary text-white rounded-xl px-8 shadow-lg shadow-primary/20 gap-2"
+                                            disabled={updateProfileMutation.isPending}
+                                        >
+                                            <Check className="h-4 w-4" />
+                                            {updateProfileMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Prénom</p>
+                                        <p className="font-semibold text-gray-900">{userProfile?.first_name || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Nom</p>
+                                        <p className="font-semibold text-gray-900">{userProfile?.last_name || '—'}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Email</p>
+                                        <p className="font-semibold text-gray-900">{userProfile?.email || '—'}</p>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Poste</p>
+                                        <p className="font-semibold text-gray-900">{userProfile?.employee_profile?.position || '—'}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Security */}
                     <Card className="border-none shadow-sm rounded-3xl bg-white overflow-hidden">
                         <CardHeader className="p-8 pb-0 flex flex-row items-center justify-between">
                             <CardTitle className="text-xl font-bold flex items-center gap-3">
@@ -168,36 +341,12 @@ export default function Profile() {
                                     </div>
                                 </form>
                             ) : (
-                                <div className="py-2">
-                                    <p className="text-gray-500 text-sm">
-                                        Il est recommandé de changer votre mot de passe régulièrement pour assurer la sécurité de vos données.
-                                    </p>
-                                </div>
+                                <p className="text-gray-500 text-sm">
+                                    Il est recommandé de changer votre mot de passe régulièrement pour assurer la sécurité de vos données.
+                                </p>
                             )}
                         </CardContent>
                     </Card>
-
-                    {/* Placeholder for other settings */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-50 select-none">
-                        <div className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-2xl bg-blue-50 text-blue-500 flex items-center justify-center">
-                                <User className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <div className="font-bold text-gray-900">Préférences</div>
-                                <p className="text-xs text-gray-500">Bientôt disponible</p>
-                            </div>
-                        </div>
-                        <div className="p-6 bg-white rounded-3xl shadow-sm border border-gray-100 flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
-                                <Mail className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <div className="font-bold text-gray-900">Notifications</div>
-                                <p className="text-xs text-gray-500">Bientôt disponible</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
