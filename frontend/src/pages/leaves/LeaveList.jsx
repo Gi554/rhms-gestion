@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useOutletContext } from 'react-router-dom'
-import { Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Filter, ChevronRight, X } from 'lucide-react'
+import { Plus, Search, Calendar, CheckCircle2, XCircle, Clock, Filter, ChevronRight, X, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -198,13 +198,44 @@ export default function LeaveList() {
                         {activeTab === 'team' ? "Validez les absences de votre équipe" : "Suivez vos demandes et vos soldes"}
                     </p>
                 </div>
-                <Button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-12 px-8 shadow-xl shadow-primary/20"
-                >
-                    <Plus className="mr-2 h-5 w-5" />
-                    Nouvelle demande
-                </Button>
+                <div className="flex gap-3">
+                    {isManager && (
+                        <Button
+                            variant="outline"
+                            onClick={async () => {
+                                try {
+                                    const params = activeTab === 'my' ? { role: 'my_requests' } : { role: 'to_approve' }
+                                    const response = await api.exportLeaves({
+                                        ...params,
+                                        status: statusFilter !== 'all' ? statusFilter : undefined,
+                                        leave_type: typeFilter !== 'all' ? typeFilter : undefined,
+                                    })
+                                    const url = window.URL.createObjectURL(new Blob([response.data]))
+                                    const link = document.createElement('a')
+                                    link.href = url
+                                    link.setAttribute('download', `conges_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
+                                    document.body.appendChild(link)
+                                    link.click()
+                                    link.remove()
+                                    toast.success("Exportation réussie !")
+                                } catch (error) {
+                                    toast.error("Erreur lors de l'exportation")
+                                }
+                            }}
+                            className="bg-white border-gray-200 text-gray-700 rounded-2xl h-12 px-6"
+                        >
+                            <Download className="mr-2 h-4 w-4" />
+                            Exporter
+                        </Button>
+                    )}
+                    <Button
+                        onClick={() => setIsModalOpen(true)}
+                        className="bg-primary hover:bg-primary/90 text-white rounded-2xl h-12 px-8 shadow-xl shadow-primary/20"
+                    >
+                        <Plus className="mr-2 h-5 w-5" />
+                        Nouvelle demande
+                    </Button>
+                </div>
             </div>
 
             {/* Tabs for Manager */}
@@ -434,13 +465,19 @@ export default function LeaveList() {
             </Card>
 
             {/* Modal: Nouvelle Demande */}
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Demande de Congé">
+            <Modal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title="Demande de Congé"
+                description="Prévoyez vos prochaines absences et congés payés"
+                maxWidth="max-w-xl"
+            >
                 <form onSubmit={handleCreateRequest} className="space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Type de congé</label>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Type de congé</label>
                         <select
                             required
-                            className="w-full h-14 rounded-2xl border-gray-100 bg-gray-50 px-4 text-gray-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                            className="w-full h-12 rounded-2xl border-transparent bg-slate-50/50 px-4 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all outline-none"
                             value={formData.leave_type}
                             onChange={(e) => setFormData({ ...formData, leave_type: e.target.value })}
                         >
@@ -452,32 +489,32 @@ export default function LeaveList() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-gray-700 ml-1">Date de début</label>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date de début</label>
                             <Input
                                 type="date"
                                 required
-                                className="h-14 rounded-2xl bg-gray-50 border-none"
+                                className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white font-bold"
                                 value={formData.start_date}
                                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-gray-700 ml-1">Date de fin</label>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date de fin</label>
                             <Input
                                 type="date"
                                 required
-                                className="h-14 rounded-2xl bg-gray-50 border-none"
+                                className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white font-bold"
                                 value={formData.end_date}
                                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Motif (Optionnel)</label>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Motif (Optionnel)</label>
                         <textarea
-                            className="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none min-h-[100px]"
+                            className="w-full rounded-2xl border-transparent bg-slate-50/50 p-4 text-sm font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all outline-none min-h-[100px] resize-none"
                             placeholder="Raison de votre absence..."
                             value={formData.reason}
                             onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
@@ -485,115 +522,135 @@ export default function LeaveList() {
                     </div>
 
                     <div className="pt-4 flex gap-3">
-                        <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} className="flex-1 h-14 rounded-2xl">
+                        <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)} className="flex-1 h-12 rounded-2xl font-bold text-slate-400">
                             Annuler
                         </Button>
-                        <Button type="submit" className="flex-1 h-14 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20" disabled={createMutation.isPending}>
-                            {createMutation.isPending ? "Envoi..." : "Envoyer la demande"}
+                        <Button type="submit" className="flex-[2] h-12 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200 font-black" disabled={createMutation.isPending}>
+                            {createMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Envoyer la demande"}
                         </Button>
                     </div>
                 </form>
             </Modal>
 
             {/* Modal: Rejet */}
-            <Modal isOpen={isRejectModalOpen} onClose={() => setIsRejectModalOpen(false)} title="Motif du rejet">
+            <Modal
+                isOpen={isRejectModalOpen}
+                onClose={() => setIsRejectModalOpen(false)}
+                title="Rejeter la demande"
+                description={`Action requise pour ${selectedLeave?.employee_detail?.full_name}`}
+                maxWidth="max-w-md"
+            >
                 <div className="space-y-6">
-                    <p className="text-gray-500 font-medium">
-                        Veuillez indiquer pourquoi la demande de <span className="font-bold text-gray-900">{selectedLeave?.employee_detail?.full_name}</span> est rejetée.
-                    </p>
-                    <textarea
-                        className="w-full rounded-2xl border-gray-100 bg-gray-50 p-4 text-gray-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none min-h-[120px]"
-                        placeholder="Ex: Besoin de personnel cette semaine-là..."
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                    />
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-rose-400 uppercase ml-1">Raison du rejet</label>
+                        <textarea
+                            className="w-full rounded-2xl border-transparent bg-rose-50/50 p-4 text-sm font-bold text-rose-900 focus:bg-white focus:ring-2 focus:ring-rose-200 transition-all outline-none min-h-[120px] resize-none"
+                            placeholder="Indiquez ici pourquoi cette demande ne peut être acceptée..."
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                        />
+                    </div>
                     <div className="flex gap-3">
-                        <Button variant="outline" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-14 rounded-2xl">
+                        <Button variant="ghost" onClick={() => setIsRejectModalOpen(false)} className="flex-1 h-12 rounded-2xl font-bold text-slate-400">
                             Annuler
                         </Button>
                         <Button
                             onClick={() => rejectMutation.mutate({ id: selectedLeave.id, reason: rejectionReason })}
-                            className="flex-1 h-14 rounded-2xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200"
+                            className="flex-[2] h-12 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white shadow-xl shadow-rose-100 font-black"
                             disabled={!rejectionReason || rejectMutation.isPending}
                         >
-                            Confirmer le rejet
+                            {rejectMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Confirmer le rejet"}
                         </Button>
                     </div>
                 </div>
             </Modal>
 
             {/* Modal: Détails */}
-            <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} title="Détails de la demande">
+            <Modal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                title="Détails du Congé"
+                description="Récapitulatif complet de la demande"
+                maxWidth="max-w-xl"
+            >
                 {selectedLeave && (
                     <div className="space-y-8">
-                        <div className="flex items-center justify-between p-6 bg-gray-50 rounded-[2rem]">
-                            <div className="flex items-center gap-4">
+                        <div className="flex items-center justify-between p-6 bg-slate-50/50 rounded-[2rem] border border-slate-100">
+                            <div className="flex items-center gap-5">
                                 <div className={cn(
-                                    "h-16 w-16 rounded-2xl flex items-center justify-center",
+                                    "h-16 w-16 rounded-[1.5rem] flex items-center justify-center shadow-inner",
                                     selectedLeave.status === 'approved' ? "bg-green-100 text-green-600" :
-                                        selectedLeave.status === 'rejected' ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"
+                                        selectedLeave.status === 'rejected' ? "bg-rose-100 text-rose-600" : "bg-orange-100 text-orange-600"
                                 )}>
                                     <Calendar className="h-8 w-8" />
                                 </div>
                                 <div>
-                                    <h4 className="font-black text-gray-900 text-xl tracking-tight">{selectedLeave.leave_type_detail?.name}</h4>
-                                    <div className={cn("inline-flex items-center px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-black mt-1", getStatusConfig(selectedLeave.status).color)}>
+                                    <h4 className="font-black text-slate-900 text-xl tracking-tight">{selectedLeave.leave_type_detail?.name}</h4>
+                                    <div className={cn("inline-flex items-center px-3 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-black mt-1.5 shadow-sm", getStatusConfig(selectedLeave.status).color)}>
                                         {getStatusConfig(selectedLeave.status).label}
                                     </div>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <div className="text-2xl font-black text-primary">{selectedLeave.total_days}</div>
-                                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Jours</div>
+                                <div className="text-3xl font-black text-slate-900 tracking-tighter">{selectedLeave.total_days}</div>
+                                <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Jours</div>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-6 px-2">
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Demandeur</span>
-                                <p className="font-bold text-gray-900 flex flex-col pt-1">
-                                    <span>{selectedLeave.employee_detail?.full_name}</span>
-                                    <span className="text-[10px] text-gray-400 font-mono opacity-80 uppercase mt-0.5">#{selectedLeave.employee_detail?.employee_id}</span>
-                                </p>
+                        <div className="grid grid-cols-2 gap-8 px-2">
+                            <div className="space-y-1.5">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Demandeur</span>
+                                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50">
+                                    <p className="font-black text-slate-900 text-sm">{selectedLeave.employee_detail?.full_name}</p>
+                                    <p className="text-[10px] text-slate-400 font-mono font-bold mt-0.5">#{selectedLeave.employee_detail?.employee_id}</p>
+                                </div>
                             </div>
-                            <div className="space-y-1">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Période</span>
-                                <p className="font-bold text-gray-900 pt-1">
-                                    {format(new Date(selectedLeave.start_date), 'dd MMM')} → {format(new Date(selectedLeave.end_date), 'dd MMM yyyy')}
-                                </p>
+                            <div className="space-y-1.5">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Période</span>
+                                <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-100/50">
+                                    <p className="font-black text-slate-900 text-sm">
+                                        {format(new Date(selectedLeave.start_date), 'dd MMM')} → {format(new Date(selectedLeave.end_date), 'dd MMM yyyy')}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400 font-bold mt-0.5 uppercase tracking-tighter">Dates d'absence</p>
+                                </div>
                             </div>
                         </div>
 
                         {selectedLeave.reason && (
-                            <div className="space-y-2 px-2">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Motif</span>
-                                <div className="bg-gray-50/50 p-4 rounded-2xl border border-gray-100/50 text-gray-700 italic text-sm leading-relaxed">
+                            <div className="space-y-1.5 px-2">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Note / Motif</span>
+                                <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-100/50 text-slate-700 italic text-sm leading-relaxed font-medium">
                                     "{selectedLeave.reason}"
                                 </div>
                             </div>
                         )}
 
                         {selectedLeave.status === 'rejected' && (
-                            <div className="space-y-2 px-2">
-                                <span className="text-[10px] font-bold text-red-400 uppercase tracking-widest">Raison du rejet</span>
-                                <div className="bg-red-50/50 p-4 rounded-2xl border border-red-100/50 text-red-700 font-medium text-sm leading-relaxed">
+                            <div className="space-y-1.5 px-2">
+                                <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest ml-1">Raison du rejet</span>
+                                <div className="bg-rose-50/30 p-5 rounded-2xl border border-rose-100/30 text-rose-700 font-bold text-sm leading-relaxed">
                                     {selectedLeave.rejection_reason || "Aucune raison spécifiée."}
                                 </div>
                             </div>
                         )}
 
                         {selectedLeave.status === 'approved' && selectedLeave.approved_by_detail && (
-                            <div className="flex items-center gap-2 px-2 py-3 bg-green-50/30 rounded-2xl border border-green-100/30">
-                                <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                    <CheckCircle2 className="h-4 w-4" />
+                            <div className="mx-2 flex items-center gap-3 px-5 py-4 bg-emerald-50/30 rounded-[1.5rem] border border-emerald-100/30">
+                                <div className="h-10 w-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shadow-sm">
+                                    <CheckCircle2 className="h-5 w-5" />
                                 </div>
-                                <span className="text-sm font-medium text-green-700">
-                                    Approuvé par <span className="font-bold">{selectedLeave.approved_by_detail.full_name}</span>
-                                </span>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Validé par</span>
+                                    <span className="text-sm font-black text-emerald-700">{selectedLeave.approved_by_detail.full_name}</span>
+                                </div>
                             </div>
                         )}
 
-                        <Button variant="outline" onClick={() => setIsDetailModalOpen(false)} className="w-full h-14 rounded-2xl border-gray-100 bg-gray-50/50">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setIsDetailModalOpen(false)}
+                            className="w-full h-14 rounded-2xl font-black text-slate-400 hover:text-slate-600 transition-colors"
+                        >
                             Fermer
                         </Button>
                     </div>

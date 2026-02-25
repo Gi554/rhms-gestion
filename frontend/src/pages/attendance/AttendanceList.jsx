@@ -151,7 +151,25 @@ export default function AttendanceList() {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <Button variant="outline" className="rounded-xl h-11 bg-white border-gray-200">
+                    <Button
+                        variant="outline"
+                        className="rounded-xl h-11 bg-white border-gray-200"
+                        onClick={async () => {
+                            try {
+                                const response = await api.exportAttendances(apiParams)
+                                const url = window.URL.createObjectURL(new Blob([response.data]))
+                                const link = document.createElement('a')
+                                link.href = url
+                                link.setAttribute('download', `presences_${format(new Date(), 'yyyyMMdd_HHmm')}.csv`)
+                                document.body.appendChild(link)
+                                link.click()
+                                link.remove()
+                                toast.success("Exportation réussie !")
+                            } catch (error) {
+                                toast.error("Erreur lors de l'exportation")
+                            }
+                        }}
+                    >
                         <Download className="mr-2 h-4 w-4" />
                         Exporter
                     </Button>

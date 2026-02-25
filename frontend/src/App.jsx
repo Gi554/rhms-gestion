@@ -17,6 +17,9 @@ import PayrollList from './pages/payroll/PayrollList'
 import DocumentList from './pages/documents/DocumentList'
 import AttendanceList from './pages/attendance/AttendanceList'
 import Profile from './pages/profile/Profile'
+import Calendar from './pages/calendar/Calendar'
+import Settings from './pages/settings/Settings'
+import NotificationList from './pages/notifications/NotificationList'
 import { api } from './lib/api-client'
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -105,6 +108,7 @@ function App() {
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/calendar" element={<Calendar />} />
           <Route
             path="/employees"
             element={isAdmin || isManager ? <EmployeeList /> : <Navigate to="/dashboard" replace />}
@@ -122,6 +126,11 @@ function App() {
           <Route path="/payroll" element={<PayrollList />} />
           <Route path="/documents" element={<DocumentList />} />
           <Route path="/profile" element={<Profile />} />
+          <Route
+            path="/settings"
+            element={isAdmin || isManager ? <Settings /> : <Navigate to="/dashboard" replace />}
+          />
+          <Route path="/notifications" element={<NotificationList />} />
         </Route>
 
         {/* Default redirect */}

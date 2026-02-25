@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { api } from '@/lib/api-client'
-import { cn } from '@/lib/utils'
+import { cn, getMediaUrl } from '@/lib/utils'
 import { toast } from 'sonner'
 import AddEmployeeModal from './AddEmployeeModal'
 import EditEmployeeModal from './EditEmployeeModal'
@@ -64,6 +64,34 @@ export default function EmployeeList() {
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
         )
+    }
+
+    const getRoleBadge = (role) => {
+        switch (role) {
+            case 'admin': return 'bg-purple-100 text-purple-700 border-purple-200'
+            case 'manager': return 'bg-amber-100 text-amber-700 border-amber-200'
+            case 'owner': return 'bg-indigo-100 text-indigo-700 border-indigo-200'
+            default: return 'bg-slate-100 text-slate-700 border-slate-200'
+        }
+    }
+
+    const getRoleLabel = (role) => {
+        switch (role) {
+            case 'admin': return 'Admin'
+            case 'manager': return 'Manager'
+            case 'owner': return 'Owner'
+            default: return 'Employé'
+        }
+    }
+
+    const getStatusLabel = (status) => {
+        switch (status) {
+            case 'active': return 'Actif'
+            case 'on_leave': return 'En congé'
+            case 'inactive': return 'Inactif'
+            case 'terminated': return 'Terminé'
+            default: return status
+        }
     }
 
     if (error) {
@@ -142,6 +170,7 @@ export default function EmployeeList() {
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employé</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Contact</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Poste & Dép.</th>
+                                        <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Rôle</th>
                                         <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Statut</th>
                                         <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                     </tr>
@@ -155,16 +184,16 @@ export default function EmployeeList() {
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/10">
+                                                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/10 transition-transform group-hover:scale-110">
                                                         {employee.profile_photo ? (
-                                                            <img src={employee.profile_photo} alt="" className="h-full w-full object-cover" />
+                                                            <img src={getMediaUrl(employee.profile_photo)} alt="" className="h-full w-full object-cover" />
                                                         ) : (
-                                                            <span>{employee.first_name[0]}{employee.last_name[0]}</span>
+                                                            <span>{(employee.first_name?.[0] || '') + (employee.last_name?.[0] || '')}</span>
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <div className="font-bold text-gray-900">{employee.first_name} {employee.last_name}</div>
-                                                        <div className="text-xs text-gray-500">ID: {employee.employee_id}</div>
+                                                        <div className="font-bold text-gray-900 leading-tight">{employee.first_name} {employee.last_name}</div>
+                                                        <div className="text-[10px] font-mono font-bold text-gray-400 mt-0.5">ID: {employee.employee_id}</div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -183,22 +212,32 @@ export default function EmployeeList() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">{employee.position}</div>
-                                                <div className="text-xs text-primary font-medium bg-primary/5 inline-block px-2 py-0.5 rounded-full mt-1">
-                                                    {employee.department_detail?.name || 'Non assigné'}
+                                                <div className="text-sm font-bold text-gray-900">{employee.position}</div>
+                                                <div className="text-[10px] text-primary font-black bg-primary/5 inline-block px-2 py-0.5 rounded-lg mt-1 uppercase tracking-tighter">
+                                                    {employee.department_detail?.name || 'Direction'}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className={cn(
-                                                    "px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full",
-                                                    employee.status === 'active' ? "bg-green-100 text-green-800" :
-                                                        employee.status === 'on_leave' ? "bg-blue-100 text-blue-800" :
-                                                            employee.status === 'terminated' ? "bg-red-100 text-red-800" :
-                                                                "bg-gray-100 text-gray-800"
+                                                    "px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border",
+                                                    getRoleBadge(employee.role)
                                                 )}>
-                                                    {employee.status === 'active' ? 'Actif' :
-                                                        employee.status === 'on_leave' ? 'En congé' :
-                                                            employee.status === 'terminated' ? 'Licencié' : 'Inactif'}
+                                                    {getRoleLabel(employee.role)}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={cn(
+                                                    "px-2.5 py-1 inline-flex text-[10px] font-black uppercase tracking-widest rounded-lg",
+                                                    employee.status === 'active' ? "bg-emerald-100 text-emerald-800" :
+                                                        employee.status === 'on_leave' ? "bg-blue-100 text-blue-800" :
+                                                            employee.status === 'terminated' ? "bg-rose-100 text-rose-800" :
+                                                                "bg-slate-100 text-slate-800"
+                                                )}>
+                                                    {getStatusLabel ? getStatusLabel(employee.status) : (
+                                                        employee.status === 'active' ? 'Actif' :
+                                                            employee.status === 'on_leave' ? 'En congé' :
+                                                                employee.status === 'terminated' ? 'Terminé' : 'Inactif'
+                                                    )}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -206,7 +245,7 @@ export default function EmployeeList() {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg"
+                                                        className="h-9 w-9 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             setEditEmployee(employee);

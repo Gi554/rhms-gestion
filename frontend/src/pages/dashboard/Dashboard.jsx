@@ -475,24 +475,48 @@ export default function Dashboard() {
                         </CardHeader>
                         <CardContent>
                             {nextEvent ? (
-                                <>
-                                    <div className="mb-4">
-                                        <h4 className="font-bold text-gray-900 mb-1">{nextEvent.title}</h4>
-                                        <p className="text-sm text-gray-500">{nextEvent.description}</p>
-                                        <div className="mt-2 text-xs font-semibold text-gray-400 bg-gray-50 inline-block px-2 py-1 rounded-md">
-                                            {format(new Date(nextEvent.start_time), "HH:mm")} - {nextEvent.end_time ? format(new Date(nextEvent.end_time), "HH:mm") : '...'}
+                                <div className="space-y-4">
+                                    <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100/50">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="px-2 py-0.5 rounded-lg bg-indigo-100 text-indigo-700 text-[10px] font-black uppercase tracking-widest">
+                                                {nextEvent.event_type === 'meeting' ? 'Réunion' : nextEvent.event_type}
+                                            </span>
+                                            <span className="text-[10px] font-bold text-indigo-400">
+                                                {format(new Date(nextEvent.start_time), "HH:mm")}
+                                            </span>
                                         </div>
+                                        <h4 className="font-bold text-slate-900 mb-1 leading-tight">{nextEvent.title}</h4>
+                                        <p className="text-xs text-slate-500 line-clamp-2 mb-3">{nextEvent.description}</p>
+
+                                        <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl h-10 shadow-lg shadow-indigo-200" asChild>
+                                            <a href={nextEvent.link || '#'} target="_blank" rel="noopener noreferrer">
+                                                <Video className="mr-2 h-4 w-4" />
+                                                Rejoindre
+                                            </a>
+                                        </Button>
                                     </div>
-                                    <Button className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-12 shadow-lg shadow-primary/20" asChild>
-                                        <a href={nextEvent.link || '#'} target="_blank" rel="noopener noreferrer">
-                                            <Video className="mr-2 h-4 w-4 fill-current" />
-                                            Rejoindre la réunion
-                                        </a>
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-primary transition-colors h-8"
+                                        onClick={() => navigate('/calendar')}
+                                    >
+                                        Voir tout le calendrier
                                     </Button>
-                                </>
+                                </div>
                             ) : (
-                                <div className="text-center py-6 text-gray-400">
-                                    Aucun rappel à venir
+                                <div className="text-center py-12 space-y-3">
+                                    <div className="h-12 w-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-200 mx-auto border border-slate-100">
+                                        <Calendar className="h-6 w-6" />
+                                    </div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Aucun rappel</p>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="rounded-xl text-[10px] font-black uppercase tracking-widest border-slate-200"
+                                        onClick={() => navigate('/calendar')}
+                                    >
+                                        Ouvrir Calendrier
+                                    </Button>
                                 </div>
                             )}
                         </CardContent>

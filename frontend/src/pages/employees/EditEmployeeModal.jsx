@@ -18,12 +18,12 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
         status: 'active',
         department: '',
         manager: '',
+        role: 'employee',
         hire_date: '',
     });
 
-    // Populate form when employee changes
     useEffect(() => {
-        if (employee) {
+        if (employee && isOpen) {
             setFormData({
                 first_name: employee.first_name || '',
                 last_name: employee.last_name || '',
@@ -33,12 +33,12 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
                 status: employee.status || 'active',
                 department: employee.department || '',
                 manager: employee.manager || '',
+                role: employee.role || 'employee',
                 hire_date: employee.hire_date || '',
             });
         }
-    }, [employee]);
+    }, [employee, isOpen]);
 
-    // Fetch departments
     const { data: departments } = useQuery({
         queryKey: ['departments', organizationId],
         queryFn: async () => {
@@ -48,7 +48,6 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
         enabled: !!organizationId && isOpen
     });
 
-    // Fetch employees for manager selection
     const { data: allEmployees } = useQuery({
         queryKey: ['employees-minimal', organizationId],
         queryFn: async () => {
@@ -63,7 +62,7 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
             queryClient.invalidateQueries({ queryKey: ['employee', employee.id] });
-            toast.success('Employé mis à jour !');
+            toast.success('Modifications enregistrées !');
             onClose();
         },
         onError: (error) => {
@@ -92,49 +91,55 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`Modifier — ${employee?.full_name}`} maxWidth="max-w-xl">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-                <div className="grid grid-cols-2 gap-3">
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Modifier l'employé"
+            description={`Mise à jour des informations de — ${employee?.first_name} ${employee?.last_name}`}
+            maxWidth="max-w-xl"
+        >
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Prénom</label>
-                        <Input name="first_name" value={formData.first_name} onChange={handleChange} required className="h-10 rounded-xl" />
+                        <Input name="first_name" value={formData.first_name} onChange={handleChange} required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nom</label>
-                        <Input name="last_name" value={formData.last_name} onChange={handleChange} required className="h-10 rounded-xl" />
+                        <Input name="last_name" value={formData.last_name} onChange={handleChange} required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Email professionnel</label>
-                        <Input name="email" type="email" value={formData.email} onChange={handleChange} required className="h-10 rounded-xl" />
+                        <Input name="email" type="email" value={formData.email} onChange={handleChange} required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Téléphone</label>
-                        <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+33 6..." className="h-10 rounded-xl" />
+                        <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+33 6..." className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Poste</label>
-                        <Input name="position" value={formData.position} onChange={handleChange} placeholder="ex: Designer" required className="h-10 rounded-xl" />
+                        <Input name="position" value={formData.position} onChange={handleChange} placeholder="Designer" required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date d'embauche</label>
-                        <Input name="hire_date" type="date" value={formData.hire_date} onChange={handleChange} className="h-10 rounded-xl" />
+                        <Input name="hire_date" type="date" value={formData.hire_date} onChange={handleChange} className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Département</label>
                         <select
                             name="department"
                             value={formData.department}
                             onChange={handleChange}
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium outline-none focus:ring-1 focus:ring-primary/20 transition-all font-bold"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                         >
                             <option value="">Non assigné</option>
                             {departments?.map(d => (
@@ -148,9 +153,9 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
                             name="manager"
                             value={formData.manager}
                             onChange={handleChange}
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium outline-none focus:ring-1 focus:ring-primary/20 transition-all font-bold"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                         >
-                            <option value="">Aucun manager</option>
+                            <option value="">Sans manager</option>
                             {allEmployees?.filter(emp => emp.id !== employee?.id).map(emp => (
                                 <option key={emp.id} value={emp.id}>{emp.full_name}</option>
                             ))}
@@ -158,31 +163,46 @@ export default function EditEmployeeModal({ isOpen, onClose, employee, organizat
                     </div>
                 </div>
 
-                <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Statut</label>
-                    <select
-                        name="status"
-                        value={formData.status}
-                        onChange={handleChange}
-                        className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-bold outline-none"
-                    >
-                        <option value="active">Actif</option>
-                        <option value="inactive">Inactif</option>
-                        <option value="on_leave">En congé</option>
-                        <option value="terminated">Licencié</option>
-                    </select>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Statut</label>
+                        <select
+                            name="status"
+                            value={formData.status}
+                            onChange={handleChange}
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
+                        >
+                            <option value="active">Actif</option>
+                            <option value="inactive">Inactif</option>
+                            <option value="on_leave">En congé</option>
+                            <option value="terminated">Terminé</option>
+                        </select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Rôle Système</label>
+                        <select
+                            name="role"
+                            value={formData.role}
+                            onChange={handleChange}
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
+                        >
+                            <option value="employee">Employé</option>
+                            <option value="manager">Manager</option>
+                            <option value="admin">Administrateur</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="pt-4 flex gap-3">
-                    <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl font-bold h-12">
+                    <Button type="button" variant="outline" onClick={onClose} className="flex-1 rounded-2xl font-bold h-12 border-slate-200 text-slate-500 hover:bg-slate-50 transition-all">
                         Annuler
                     </Button>
                     <Button
                         type="submit"
-                        className="flex-[2] bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 font-black h-12"
+                        className="flex-[2] bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200 font-black h-12 hover:bg-slate-800 transition-all"
                         disabled={mutation.isPending}
                     >
-                        {mutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Enregistrer les modifications'}
+                        {mutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Enregistrer'}
                     </Button>
                 </div>
             </form>

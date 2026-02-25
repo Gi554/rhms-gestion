@@ -33,7 +33,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 'employee_id': employee.employee_id,
                 'position': employee.position,
                 'organization_id': employee.organization.id,
-                'profile_photo': employee.profile_photo.url if employee.profile_photo else None
+                'profile_photo': self.context.get('request').build_absolute_uri(employee.profile_photo.url) if employee.profile_photo and self.context.get('request') else (employee.profile_photo.url if employee.profile_photo else None),
+                'phone': employee.phone,
+                'date_of_birth': employee.date_of_birth,
+                'gender': employee.gender,
+                'address_line1': employee.address_line1,
+                'address_line2': employee.address_line2,
+                'city': employee.city,
+                'state': employee.state,
+                'postal_code': employee.postal_code,
+                'country': employee.country,
+                'hire_date': employee.hire_date,
+                'annual_leave_days': employee.annual_leave_days,
+                'sick_leave_days': employee.sick_leave_days,
             }
         return None
         
@@ -123,6 +135,7 @@ class EmployeeListSerializer(serializers.ModelSerializer):
     """Serializer léger pour les listes"""
     department_detail = serializers.SerializerMethodField()
     manager_detail = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
     
     class Meta:
         model = Employee
@@ -130,8 +143,17 @@ class EmployeeListSerializer(serializers.ModelSerializer):
             'id', 'employee_id', 'first_name', 'last_name', 'full_name',
             'email', 'phone', 'position', 'employment_type',
             'department', 'department_detail', 'manager', 'manager_detail',
-            'hire_date', 'status', 'profile_photo'
+            'hire_date', 'status', 'profile_photo', 'role'
         ]
+    
+    def get_role(self, obj):
+        if obj.user:
+            membership = obj.user.organization_memberships.filter(
+                organization=obj.organization,
+                is_active=True
+            ).first()
+            return membership.role if membership else 'employee'
+        return 'employee'
     
     def get_department_detail(self, obj):
         if obj.department:
@@ -156,6 +178,7 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
     manager_detail = EmployeeListSerializer(source='manager', read_only=True)
     user_detail = UserSerializer(source='user', read_only=True)
     subordinates_count = serializers.SerializerMethodField()
+    role = serializers.SerializerMethodField()
     
     class Meta:
         model = Employee
@@ -171,9 +194,18 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
             'salary', 'salary_currency',
             'profile_photo', 'resume',
             'annual_leave_days', 'sick_leave_days',
-            'status', 'is_active', 'created_at', 'updated_at'
+            'status', 'role', 'is_active', 'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'employee_id', 'full_name', 'created_at', 'updated_at']
+
+    def get_role(self, obj):
+        if obj.user:
+            membership = obj.user.organization_memberships.filter(
+                organization=obj.organization,
+                is_active=True
+            ).first()
+            return membership.role if membership else 'employee'
+        return 'employee'
     
     def get_subordinates_count(self, obj):
         return obj.subordinates.filter(is_active=True).count()
@@ -218,7 +250,7 @@ class LeaveRequestListSerializer(serializers.ModelSerializer):
             'id': obj.employee.id,
             'full_name': obj.employee.full_name,
             'employee_id': obj.employee.employee_id,
-            'profile_photo': obj.employee.profile_photo.url if obj.employee.profile_photo else None
+            'profile_photo': self.context.get('request').build_absolute_uri(obj.employee.profile_photo.url) if obj.employee.profile_photo and self.context.get('request') else (obj.employee.profile_photo.url if obj.employee.profile_photo else None)
         }
 
     def get_approved_by_detail(self, obj):
@@ -342,9 +374,28 @@ class PayrollSerializer(serializers.ModelSerializer):
 # ==================== WIDGETS ====================
 
 class EventSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    attendee_details = serializers.SerializerMethodField()
+    
     class Meta:
         model = Event
-        fields = '__all__'
+        fields = [
+            'id', 'organization', 'created_by', 'created_by_name',
+            'title', 'description', 'event_type',
+            'start_time', 'end_time', 'location', 'link',
+            'attendees', 'attendee_details', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_by', 'created_at']
+
+    def get_attendee_details(self, obj):
+        return [
+            {
+                'id': user.id,
+                'full_name': user.get_full_name() or user.username,
+                'email': user.email
+            }
+            for user in obj.attendees.all()
+        ]
 
 
 class NotificationSerializer(serializers.ModelSerializer):
