@@ -56,10 +56,11 @@ admin_user, created = User.objects.get_or_create(
         'is_superuser': True,
     }
 )
-if created:
-    admin_user.set_password('admin123')
-    admin_user.save()
-    print(f"✅ Superuser créé: {admin_user.username}")
+admin_user.set_password('admin123')
+admin_user.is_staff = True
+admin_user.is_superuser = True
+admin_user.save()
+print(f"✅ Superuser configuré: {admin_user.username}")
 
 # Manager user
 manager_user, created = User.objects.get_or_create(
@@ -70,10 +71,9 @@ manager_user, created = User.objects.get_or_create(
         'last_name': 'Martin',
     }
 )
-if created:
-    manager_user.set_password('manager123')
-    manager_user.save()
-    print(f"✅ Manager créé: {manager_user.username}")
+manager_user.set_password('manager123')
+manager_user.save()
+print(f"✅ Manager configuré: {manager_user.username}")
 
 # Employee user
 employee_user, created = User.objects.get_or_create(
@@ -84,10 +84,9 @@ employee_user, created = User.objects.get_or_create(
         'last_name': 'Dupont',
     }
 )
-if created:
-    employee_user.set_password('employee123')
-    employee_user.save()
-    print(f"✅ Employé créé: {employee_user.username}")
+employee_user.set_password('employee123')
+employee_user.save()
+print(f"✅ Employé configuré: {employee_user.username}")
 
 # Créer les membres d'organisation
 OrganizationMember.objects.get_or_create(
