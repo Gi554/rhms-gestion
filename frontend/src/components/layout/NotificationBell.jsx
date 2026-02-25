@@ -53,6 +53,8 @@ export default function NotificationBell() {
             case 'leave': return <Calendar className="h-4 w-4 text-blue-500" />;
             case 'payroll': return <Briefcase className="h-4 w-4 text-emerald-500" />;
             case 'document': return <FileText className="h-4 w-4 text-orange-500" />;
+            case 'meeting': return <Video className="h-4 w-4 text-purple-500" />;
+            case 'system': return <Info className="h-4 w-4 text-slate-500" />;
             default: return <Settings className="h-4 w-4 text-slate-500" />;
         }
     };
@@ -157,7 +159,10 @@ export default function NotificationBell() {
                     </div>
 
                     <div className="p-4 border-t border-slate-50 bg-slate-50/30 text-center">
-                        <button className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors">
+                        <button
+                            onClick={() => { navigate('/notifications'); setIsOpen(false); }}
+                            className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest transition-colors"
+                        >
                             Voir tout l'historique
                         </button>
                     </div>

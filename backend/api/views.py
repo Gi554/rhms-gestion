@@ -34,7 +34,7 @@ class MeViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
     
     def list(self, request):
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['patch'], url_path='update-profile')
@@ -49,13 +49,28 @@ class MeViewSet(viewsets.ViewSet):
                 setattr(user, field, request.data[field])
         user.save()
 
-        # Champs profil employé (Poste)
-        if 'position' in request.data and hasattr(user, 'employee_profile'):
+        # Champs profil employé
+        if hasattr(user, 'employee_profile'):
             employee = user.employee_profile
-            employee.position = request.data['position']
+            
+            # Liste des champs à mettre à jour
+            emp_fields = [
+                'position', 'phone', 'date_of_birth', 'gender',
+                'address_line1', 'address_line2', 'city', 'state',
+                'postal_code', 'country'
+            ]
+            
+            for field in emp_fields:
+                if field in request.data:
+                    # Gérer les dates vides
+                    if field == 'date_of_birth' and not request.data[field]:
+                        setattr(employee, field, None)
+                    else:
+                        setattr(employee, field, request.data[field])
+            
             employee.save()
             
-        serializer = UserProfileSerializer(user)
+        serializer = UserProfileSerializer(user, context={'request': request})
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'], url_path='change-password')
@@ -89,7 +104,7 @@ class MeViewSet(viewsets.ViewSet):
         employee.profile_photo = request.FILES['photo']
         employee.save()
         
-        serializer = UserProfileSerializer(user)
+        serializer = UserProfileSerializer(user, context={'request': request})
         return Response(serializer.data)
 
 
@@ -289,6 +304,20 @@ class EmployeeViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
                 user=user,
                 defaults={'role': role}
             )
+
+    def perform_update(self, serializer):
+        """
+        Handle updating the role in OrganizationMember when an Employee is updated
+        """
+        with transaction.atomic():
+            employee = serializer.save()
+            role = self.request.data.get('role')
+            
+            if role and employee.user:
+                OrganizationMember.objects.filter(
+                    organization=employee.organization,
+                    user=employee.user
+                ).update(role=role)
     
     @action(detail=True, methods=['get'])
     def subordinates(self, request, pk=None):
@@ -453,6 +482,34 @@ class LeaveRequestViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
         serializer = self.get_serializer(leave_request)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
+    def export_csv(self, request):
+        """Exporter les demandes de congés en CSV"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="conges_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Employé', 'ID Employé', 'Type', 'Début', 'Fin', 'Jours', 'Statut', 'Motif'])
+        
+        for leave in queryset:
+            writer.writerow([
+                leave.employee.full_name,
+                leave.employee.employee_id,
+                leave.leave_type.name,
+                leave.start_date,
+                leave.end_date,
+                leave.total_days,
+                leave.status,
+                leave.reason
+            ])
+            
+        return response
+
 
 # ==================== ATTENDANCE ====================
 
@@ -581,6 +638,33 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
         attendance.save()
         return Response(AttendanceSerializer(attendance).data)
 
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsManagerOrAdmin])
+    def export_csv(self, request):
+        """Exporter les présences en CSV"""
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="presences_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Employé', 'ID Employé', 'Date', 'Arrivée', 'Départ', 'Heures', 'Statut'])
+        
+        for att in queryset:
+            writer.writerow([
+                att.employee.full_name,
+                att.employee.employee_id,
+                att.date,
+                att.check_in,
+                att.check_out,
+                att.hours_worked,
+                att.status
+            ])
+            
+        return response
+
 
 # ==================== DOCUMENT ====================
 
@@ -686,8 +770,28 @@ class EventViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
     
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Seulement les événements futurs ou d'aujourd'hui
-        return queryset.filter(start_time__gte=timezone.now().date())
+        # Filtrer par organisation (déjà fait par mixin)
+        # Optionnel: filtrer par date si demandé (ex: calendrier vue mensuelle)
+        return queryset
+
+    def perform_create(self, serializer):
+        with transaction.atomic():
+            event = serializer.save(
+                organization=self.get_organization(),
+                created_by=self.request.user
+            )
+            
+            # Envoyer des notifications aux participants
+            for attendee in event.attendees.all():
+                if attendee != self.request.user:
+                    Notification.objects.create(
+                        recipient=attendee,
+                        sender=self.request.user,
+                        type='system',
+                        title=f"Nouvelle invitation : {event.title}",
+                        message=f"Vous avez été invité à un événement ({event.get_event_type_display()}) le {event.start_time.strftime('%d/%m/%Y à %H:%m')}.",
+                        link=f"/calendar?event={event.id}"
+                    )
 
 
 class ProjectViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):

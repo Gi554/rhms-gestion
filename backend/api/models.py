@@ -428,14 +428,34 @@ class Payroll(models.Model):
 class Event(models.Model):
     """Événements et Rappels pour le Dashboard"""
     
+    TYPE_MEETING = 'meeting'
+    TYPE_DEADLINE = 'deadline'
+    TYPE_HOLIDAY = 'holiday'
+    TYPE_TRAINING = 'training'
+    TYPE_OTHER = 'other'
+    
+    TYPE_CHOICES = [
+        (TYPE_MEETING, 'Réunion'),
+        (TYPE_DEADLINE, 'Échéance'),
+        (TYPE_HOLIDAY, 'Jour férié / Congé'),
+        (TYPE_TRAINING, 'Formation'),
+        (TYPE_OTHER, 'Autre'),
+    ]
+    
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='events')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_events')
+    
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
+    event_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default=TYPE_MEETING)
     
     start_time = models.DateTimeField()
-    end_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(default=timezone.now)
     
+    location = models.CharField(max_length=255, blank=True, help_text="Lieu ou lien visio")
     link = models.URLField(blank=True, help_text="Lien vers la réunion ou le document")
+    
+    attendees = models.ManyToManyField(User, related_name='event_invitations', blank=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     

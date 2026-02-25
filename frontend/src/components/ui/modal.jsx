@@ -1,30 +1,62 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export default function Modal({ isOpen, onClose, title, children }) {
+export default function Modal({
+    isOpen,
+    onClose,
+    title,
+    children,
+    maxWidth = "max-w-lg",
+    description
+}) {
+    // Prevent scrolling behind modal when open
+    useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return createPortal(
         <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-300"
             onClick={onClose}
         >
             <div
-                className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20"
+                className={cn(
+                    "bg-white rounded-[2.5rem] shadow-2xl w-full overflow-hidden animate-in zoom-in-95 duration-200 border border-white flex flex-col max-h-[90vh]",
+                    maxWidth
+                )}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className="flex items-center justify-between px-8 py-6 border-b border-gray-50">
-                    <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{title}</h3>
+                {/* Header */}
+                <div className="bg-slate-50/50 px-8 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                    <div>
+                        <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">{title}</h3>
+                        {description && (
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                {description}
+                            </p>
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                        className="p-2 rounded-2xl hover:bg-white text-slate-400 hover:text-slate-600 transition-all border border-transparent hover:border-slate-100"
                     >
-                        <X className="h-6 w-6" />
+                        <X className="h-5 w-5" />
                     </button>
                 </div>
-                <div className="p-8">
+
+                {/* Content */}
+                <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
                     {children}
                 </div>
             </div>

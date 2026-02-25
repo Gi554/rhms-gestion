@@ -5,13 +5,12 @@ import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Loader2, Check } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
 
 export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
     const queryClient = useQueryClient();
     const [isSuccess, setIsSuccess] = useState(false);
     const [lastEmail, setLastEmail] = useState('');
-    const [lastRole, setLastRole] = useState('');
     const [formData, setFormData] = useState({
         first_name: '',
         last_name: '',
@@ -23,7 +22,6 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
         hire_date: new Date().toISOString().split('T')[0],
     });
 
-    // Fetch departments
     const { data: departments } = useQuery({
         queryKey: ['departments', organizationId],
         queryFn: async () => {
@@ -33,7 +31,6 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
         enabled: !!organizationId && isOpen
     });
 
-    // Fetch employees for manager selection
     const { data: allEmployees } = useQuery({
         queryKey: ['employees-minimal', organizationId],
         queryFn: async () => {
@@ -45,10 +42,9 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
 
     const mutation = useMutation({
         mutationFn: (data) => api.createEmployee(data),
-        onSuccess: (response) => {
+        onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['employees'] });
             setLastEmail(formData.email);
-            setLastRole(formData.role);
             setIsSuccess(true);
             setFormData({
                 first_name: '',
@@ -66,9 +62,9 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
             if (data && typeof data === 'object') {
                 const firstError = Object.values(data)[0];
                 const message = Array.isArray(firstError) ? firstError[0] : firstError;
-                toast.error(message || 'Erreur lors de l\'ajout de l\'employé');
+                toast.error(message || 'Erreur lors de l\'ajout');
             } else {
-                toast.error('Erreur lors de l\'ajout de l\'employé');
+                toast.error('Erreur lors de l\'ajout');
             }
         },
     });
@@ -83,7 +79,6 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
         const payload = { ...formData, organization: organizationId };
         if (!payload.department) delete payload.department;
         if (!payload.manager || payload.manager === "") delete payload.manager;
-
         mutation.mutate(payload);
     };
 
@@ -124,7 +119,7 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
                                     variant="outline"
                                     size="sm"
                                     onClick={copyPassword}
-                                    className="h-9 px-4 rounded-xl text-xs font-bold border-slate-200"
+                                    className="h-9 px-4 rounded-xl text-xs font-bold border-slate-200 hover:bg-white"
                                 >
                                     Copier
                                 </Button>
@@ -144,36 +139,42 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
     }
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Nouvel Employé" maxWidth="max-w-xl">
-            <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-                <div className="grid grid-cols-2 gap-3">
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Nouvel Employé"
+            description="Ajoutez un membre à votre organisation"
+            maxWidth="max-w-xl"
+        >
+            <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Prénom</label>
-                        <Input name="first_name" value={formData.first_name} onChange={handleChange} placeholder="ex: Jean" required className="h-10 rounded-xl" />
+                        <Input name="first_name" value={formData.first_name} onChange={handleChange} placeholder="Jean" required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nom</label>
-                        <Input name="last_name" value={formData.last_name} onChange={handleChange} placeholder="ex: Dupont" required className="h-10 rounded-xl" />
+                        <Input name="last_name" value={formData.last_name} onChange={handleChange} placeholder="Dupont" required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                 </div>
 
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Email professionnel</label>
-                    <Input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="jean.dupont@entreprise.com" required className="h-10 rounded-xl" />
+                    <Input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="jean.dupont@entreprise.com" required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Poste</label>
-                        <Input name="position" value={formData.position} onChange={handleChange} placeholder="ex: Directeur" required className="h-10 rounded-xl" />
+                        <Input name="position" value={formData.position} onChange={handleChange} placeholder="Directeur" required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Role système</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Rôle système</label>
                         <select
                             name="role"
                             value={formData.role}
                             onChange={handleChange}
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-bold outline-none"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                         >
                             <option value="employee">Employé</option>
                             <option value="manager">Manager</option>
@@ -182,14 +183,14 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Département</label>
                         <select
                             name="department"
                             value={formData.department}
                             onChange={handleChange}
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium outline-none transition-all font-bold"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                         >
                             <option value="">Non assigné</option>
                             {departments?.map(d => (
@@ -203,9 +204,9 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
                             name="manager"
                             value={formData.manager}
                             onChange={handleChange}
-                            className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-medium outline-none transition-all font-bold"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                         >
-                            <option value="">Sélectionner...</option>
+                            <option value="">Sans manager</option>
                             {allEmployees?.map(emp => (
                                 <option key={emp.id} value={emp.id}>{emp.full_name}</option>
                             ))}
@@ -215,19 +216,19 @@ export default function AddEmployeeModal({ isOpen, onClose, organizationId }) {
 
                 <div className="space-y-1">
                     <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date d'embauche</label>
-                    <Input name="hire_date" type="date" value={formData.hire_date} onChange={handleChange} required className="h-10 rounded-xl" />
+                    <Input name="hire_date" type="date" value={formData.hire_date} onChange={handleChange} required className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white" />
                 </div>
 
                 <div className="pt-4 flex gap-3">
-                    <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-xl font-bold h-12 text-gray-500">
+                    <Button type="button" variant="ghost" onClick={onClose} className="flex-1 rounded-2xl font-bold h-12 text-slate-400">
                         Annuler
                     </Button>
                     <Button
                         type="submit"
-                        className="flex-[2] bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-200 font-black h-12"
+                        className="flex-[2] bg-slate-900 text-white rounded-2xl shadow-xl shadow-slate-200 font-black h-12 hover:bg-slate-800 transition-all"
                         disabled={mutation.isPending}
                     >
-                        {mutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Créer le compte employé'}
+                        {mutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Créer le compte'}
                     </Button>
                 </div>
             </form>

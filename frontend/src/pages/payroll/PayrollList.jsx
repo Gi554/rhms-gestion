@@ -264,146 +264,193 @@ export default function PayrollList() {
 
             <CreatePayrollModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} userProfile={userProfile} editData={payrollToEdit} />
 
-            {/* ORG SETTINGS MODAL - COMPACT VERSION */}
-            <Modal isOpen={isOrgModalOpen} onClose={() => setIsOrgModalOpen(false)} title="Identité de l'Entreprise" maxWidth="max-w-md">
+            {/* ORG SETTINGS MODAL */}
+            <Modal
+                isOpen={isOrgModalOpen}
+                onClose={() => setIsOrgModalOpen(false)}
+                title="Configuration de l'Entreprise"
+                description="Identité et cachets officiels pour les documents"
+                maxWidth="max-w-xl"
+            >
                 <form onSubmit={(e) => {
                     e.preventDefault();
                     const formData = new FormData(e.currentTarget);
                     updateOrgMutation.mutate(formData);
-                }} className="space-y-4 pt-2">
-                    <div className="grid grid-cols-2 gap-3">
+                }} className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase">Nom</label>
-                            <Input name="name" defaultValue={organization?.name} required className="rounded-lg h-10 text-sm" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nom de la structure</label>
+                            <Input
+                                name="name"
+                                defaultValue={organization?.name}
+                                required
+                                className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white font-bold"
+                            />
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase">SIRET</label>
-                            <Input name="siret" defaultValue={organization?.siret} placeholder="123 456..." className="rounded-lg h-10 text-sm" />
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Numéro SIRET</label>
+                            <Input
+                                name="siret"
+                                defaultValue={organization?.siret}
+                                placeholder="123 456 789 00012"
+                                className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white font-bold"
+                            />
                         </div>
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Siège Social</label>
-                        <textarea name="address" defaultValue={organization?.address} className="w-full h-16 p-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-1 focus:ring-slate-300 resize-none" />
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Siège Social / Adresse</label>
+                        <textarea
+                            name="address"
+                            defaultValue={organization?.address}
+                            placeholder="Adresse complète du siège..."
+                            className="w-full h-24 p-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold resize-none outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                        />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 pb-2">
+                    <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase">Logo</label>
-                            <div className="relative group h-24 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Logo Officiel</label>
+                            <div className="relative group h-32 rounded-[2rem] border-2 border-dashed border-slate-100 bg-slate-50/50 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-primary/30 hover:bg-slate-50">
                                 {organization?.logo ? (
-                                    <img src={organization.logo} className="w-full h-full object-contain p-1" alt="Logo" />
+                                    <img src={organization.logo} className="w-full h-full object-contain p-2" alt="Logo" />
                                 ) : (
-                                    <Upload className="h-5 w-5 text-slate-300" />
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Upload className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                        <span className="text-[9px] font-black text-slate-400 uppercase">Importer</span>
+                                    </div>
                                 )}
-                                <Input type="file" name="logo" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                                <Input type="file" name="logo" className="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase">Cachet</label>
-                            <div className="relative group h-24 rounded-xl border-2 border-dashed border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Cachet / Signature</label>
+                            <div className="relative group h-32 rounded-[2rem] border-2 border-dashed border-slate-100 bg-slate-50/50 flex flex-col items-center justify-center overflow-hidden transition-all hover:border-primary/30 hover:bg-slate-50">
                                 {organization?.digital_stamp ? (
-                                    <img src={organization.digital_stamp} className="w-full h-full object-contain p-1" alt="Signature" />
+                                    <img src={organization.digital_stamp} className="w-full h-full object-contain p-2" alt="Signature" />
                                 ) : (
-                                    <Edit2 className="h-5 w-5 text-slate-300" />
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Edit2 className="h-6 w-6 text-slate-300 group-hover:text-primary transition-colors" />
+                                        <span className="text-[9px] font-black text-slate-400 uppercase">Importer</span>
+                                    </div>
                                 )}
-                                <Input type="file" name="digital_stamp" className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                                <Input type="file" name="digital_stamp" className="absolute inset-0 opacity-0 cursor-pointer z-10" accept="image/*" />
                             </div>
                         </div>
                     </div>
 
-                    <Button type="submit" className="w-full h-11 rounded-xl bg-slate-900 shadow-lg shadow-slate-100 font-bold" disabled={updateOrgMutation.isPending}>
-                        {updateOrgMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Enregistrer'}
-                    </Button>
+                    <div className="pt-4 flex gap-3">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setIsOrgModalOpen(false)}
+                            className="flex-1 h-12 rounded-2xl font-bold text-slate-400"
+                        >
+                            Annuler
+                        </Button>
+                        <Button
+                            type="submit"
+                            className="flex-[2] h-12 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200 font-black"
+                            disabled={updateOrgMutation.isPending}
+                        >
+                            {updateOrgMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : 'Enregistrer les modifications'}
+                        </Button>
+                    </div>
                 </form>
             </Modal>
 
             {/* PAYSLIP MODAL */}
-            <Modal isOpen={isDetailModalOpen} onClose={() => setIsDetailModalOpen(false)} title="Bulletin de Paie Officiel" maxWidth="max-w-4xl">
+            <Modal
+                isOpen={isDetailModalOpen}
+                onClose={() => setIsDetailModalOpen(false)}
+                title="Bulletin de Paie"
+                description="Visualisation conforme du document officiel"
+                maxWidth="max-w-5xl"
+            >
                 {selectedPayroll && (
-                    <div className="flex flex-col gap-4">
-                        <div className="max-h-[70vh] overflow-y-auto rounded-xl border border-slate-100 p-1 bg-slate-50/30">
-                            <div ref={payslipRef} className="bg-white p-12 mx-auto origin-top" style={{ width: '210mm', minHeight: '290mm', fontSize: '12px', color: '#1a1a1a' }}>
+                    <div className="flex flex-col gap-6">
+                        <div className="max-h-[70vh] overflow-y-auto rounded-[2.5rem] border border-slate-100 p-2 bg-slate-100/30 custom-scrollbar">
+                            <div ref={payslipRef} className="bg-white p-12 mx-auto shadow-2xl origin-top" style={{ width: '210mm', minHeight: '290mm', fontSize: '12px', color: '#1a1a1a' }}>
                                 {/* Header */}
-                                <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
-                                    <div className="flex gap-6 items-start">
+                                <div className="flex justify-between items-start border-b-2 border-black pb-8 mb-10">
+                                    <div className="flex gap-8 items-start">
                                         {organization?.logo ? (
-                                            <img src={organization.logo} className="h-14 w-14 object-contain" alt="Logo" />
+                                            <img src={organization.logo} className="h-16 w-16 object-contain" alt="Logo" />
                                         ) : (
-                                            <div className="h-14 w-14 bg-slate-900 rounded flex items-center justify-center text-white text-[10px]">LOGO</div>
+                                            <div className="h-16 w-16 bg-slate-900 rounded-xl flex items-center justify-center text-white text-[10px] font-black">LOGO</div>
                                         )}
                                         <div>
-                                            <p className="text-lg font-black uppercase leading-tight">{organization?.name || 'ENTREPRISE'}</p>
-                                            <p className="text-gray-500 text-[10px] mt-1 max-w-[250px] whitespace-pre-wrap">{organization?.address || 'Adresse non renseignée'}</p>
-                                            <p className="text-gray-900 text-[10px] font-bold mt-2 tracking-tight">SIRET : <span className="font-mono">{organization?.siret || '—'}</span></p>
+                                            <p className="text-xl font-black uppercase tracking-tight">{organization?.name || 'ENTREPRISE'}</p>
+                                            <p className="text-gray-500 text-[10px] mt-1.5 max-w-[280px] font-medium leading-relaxed">{organization?.address || 'Adresse non renseignée'}</p>
+                                            <p className="text-gray-900 text-[10px] font-black mt-3 tracking-widest bg-slate-50 inline-block px-2 py-0.5 rounded">SIRET : <span className="font-mono">{organization?.siret || '—'}</span></p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <h2 className="text-2xl font-black uppercase tracking-tighter mb-1 leading-none">Bulletin de Paie</h2>
-                                        <div className="inline-block border-2 border-black px-3 py-1 mt-2">
-                                            <p className="font-black text-base">{months.find(m => m.value === selectedPayroll.month.toString())?.label} {selectedPayroll.year}</p>
+                                        <h2 className="text-3xl font-black uppercase tracking-tighter mb-2 leading-none">Bulletin de Paie</h2>
+                                        <div className="inline-block bg-slate-900 text-white px-4 py-2 mt-2 rounded-lg">
+                                            <p className="font-black text-lg">{months.find(m => m.value === selectedPayroll.month.toString())?.label} {selectedPayroll.year}</p>
                                         </div>
                                     </div>
                                 </div>
 
                                 {/* Employee Info */}
-                                <div className="grid grid-cols-2 gap-8 mb-10">
-                                    <div className="border border-black p-4 relative">
-                                        <span className="absolute -top-2.5 left-2 bg-white px-1.5 text-[9px] font-bold uppercase tracking-widest">Salarié</span>
-                                        <div className="space-y-0.5">
-                                            <p className="text-base font-black uppercase">{selectedPayroll.employee_detail?.full_name}</p>
-                                            <p className="text-[11px] font-medium">Matricule : {selectedPayroll.employee_detail?.employee_id}</p>
-                                            <p className="text-[11px] font-medium">Position : {selectedPayroll.employee_detail?.position || 'Agent'}</p>
+                                <div className="grid grid-cols-2 gap-10 mb-12">
+                                    <div className="border-2 border-black p-6 relative rounded-sm">
+                                        <span className="absolute -top-3 left-4 bg-white px-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Salarié</span>
+                                        <div className="space-y-1">
+                                            <p className="text-lg font-black uppercase tracking-tight">{selectedPayroll.employee_detail?.full_name}</p>
+                                            <p className="text-[11px] font-bold text-slate-500">Matricule : <span className="text-slate-900 font-mono">#{selectedPayroll.employee_detail?.employee_id}</span></p>
+                                            <p className="text-[11px] font-bold text-slate-500">Position : <span className="text-slate-900 uppercase">{selectedPayroll.employee_detail?.position || 'Agent'}</span></p>
                                         </div>
                                     </div>
-                                    <div className="space-y-1 text-right text-[10px]">
-                                        <p><span className="text-gray-400 uppercase font-black mr-2">N° Bulletin :</span> <span className="font-mono font-bold tracking-tight">#PAIE-{selectedPayroll.id}</span></p>
-                                        <p><span className="text-gray-400 uppercase font-black mr-2">Paiement :</span> <span className="font-bold">30/{selectedPayroll.month}/{selectedPayroll.year}</span></p>
-                                        <p><span className="text-gray-400 uppercase font-black mr-2">Méthode :</span> <span className="font-bold">Virement</span></p>
+                                    <div className="flex flex-col justify-center items-end text-[10px] space-y-2">
+                                        <p className="flex items-center gap-3"><span className="text-slate-300 uppercase font-black tracking-widest">N° Bulletin</span> <span className="font-mono font-bold text-slate-900 bg-slate-50 px-2 py-0.5 rounded">#PAIE-{selectedPayroll.id}</span></p>
+                                        <p className="flex items-center gap-3"><span className="text-slate-300 uppercase font-black tracking-widest">Date Paiement</span> <span className="font-black text-slate-900">30/{selectedPayroll.month}/{selectedPayroll.year}</span></p>
+                                        <p className="flex items-center gap-3"><span className="text-slate-300 uppercase font-black tracking-widest">Mode</span> <span className="font-black text-slate-900">VIREMENT BANCAIRE</span></p>
                                     </div>
                                 </div>
 
                                 {/* Salary Table */}
-                                <div className="mb-12">
+                                <div className="mb-14">
                                     <table className="w-full border-collapse">
                                         <thead>
-                                            <tr className="border-y-2 border-black text-[10px] font-black uppercase tracking-widest">
-                                                <th className="py-3 text-left w-1/2">Libellé</th>
-                                                <th className="py-3 text-center">Quantité</th>
-                                                <th className="py-3 text-right">Gains (€)</th>
-                                                <th className="py-3 text-right">Retenues (€)</th>
+                                            <tr className="border-y-2 border-black text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                                                <th className="py-4 text-left w-1/2 px-4 text-black">Libellé des éléments</th>
+                                                <th className="py-4 text-center">Quantité</th>
+                                                <th className="py-4 text-right">Gains (€)</th>
+                                                <th className="py-4 text-right px-4">Retenues (€)</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="text-[11px] divide-y divide-gray-100">
-                                            <tr className="font-bold text-gray-800">
-                                                <td className="py-4 font-black">Salaire de Base</td>
-                                                <td className="py-4 text-center">151.67 H</td>
-                                                <td className="py-4 text-right">{parseFloat(selectedPayroll.base_salary).toLocaleString()}</td>
-                                                <td className="py-4 text-right">—</td>
+                                        <tbody className="text-[12px] divide-y divide-slate-100">
+                                            <tr className="font-bold">
+                                                <td className="py-6 px-4 font-black">Salaire de Base Conventionnel</td>
+                                                <td className="py-6 text-center text-slate-400">151.67 H</td>
+                                                <td className="py-6 text-right font-black">{parseFloat(selectedPayroll.base_salary).toLocaleString()}</td>
+                                                <td className="py-6 text-right px-4 text-slate-300">—</td>
                                             </tr>
                                             {selectedPayroll.bonuses > 0 && (
-                                                <tr className="text-emerald-700 font-medium">
-                                                    <td className="py-4">Primes / Indemnités</td>
-                                                    <td className="py-4 text-center">—</td>
-                                                    <td className="py-4 text-right">{parseFloat(selectedPayroll.bonuses).toLocaleString()}</td>
-                                                    <td className="py-4 text-right">—</td>
+                                                <tr className="text-emerald-700">
+                                                    <td className="py-6 px-4 font-black italic">Primes / Indemnités de mission</td>
+                                                    <td className="py-6 text-center text-slate-400">—</td>
+                                                    <td className="py-6 text-right font-black">{parseFloat(selectedPayroll.bonuses).toLocaleString()}</td>
+                                                    <td className="py-6 text-right px-4 text-slate-300">—</td>
                                                 </tr>
                                             )}
                                             {selectedPayroll.deductions > 0 && (
-                                                <tr className="text-red-700 font-medium">
-                                                    <td className="py-4">Cotisations Salariales</td>
-                                                    <td className="py-4 text-center">—</td>
-                                                    <td className="py-4 text-right">—</td>
-                                                    <td className="py-4 text-right">{parseFloat(selectedPayroll.deductions).toLocaleString()}</td>
+                                                <tr className="text-rose-700">
+                                                    <td className="py-6 px-4 font-black italic">Cotisations Sociales Salariales</td>
+                                                    <td className="py-6 text-center text-slate-400">—</td>
+                                                    <td className="py-6 text-right text-slate-300">—</td>
+                                                    <td className="py-6 text-right px-4 font-black">{parseFloat(selectedPayroll.deductions).toLocaleString()}</td>
                                                 </tr>
                                             )}
                                         </tbody>
                                         <tfoot>
                                             <tr className="border-t-2 border-black">
-                                                <td colSpan="2" className="py-6 text-right font-black uppercase text-xs pr-8 tracking-widest">Net à Payer</td>
-                                                <td colSpan="2" className="py-6 text-right">
-                                                    <span className="text-3xl font-black border-[3px] border-black px-5 py-1.5 inline-block">
-                                                        {parseFloat(selectedPayroll.net_salary).toLocaleString()} <span className="text-xs font-medium ml-1">€</span>
+                                                <td colSpan="2" className="py-10 text-right font-black uppercase text-sm pr-10 tracking-[0.4em] text-slate-400">Net à Payer</td>
+                                                <td colSpan="2" className="py-10 text-right px-4">
+                                                    <span className="text-4xl font-black bg-slate-900 text-white px-8 py-3 rounded-xl shadow-2xl flex items-baseline justify-end gap-2 float-right">
+                                                        {parseFloat(selectedPayroll.net_salary).toLocaleString()} <span className="text-xs font-bold text-white/50 tracking-widest ml-1">EUR</span>
                                                     </span>
                                                 </td>
                                             </tr>
@@ -412,20 +459,23 @@ export default function PayrollList() {
                                 </div>
 
                                 {/* Footer */}
-                                <div className="mt-auto border-t border-gray-100 pt-6 flex justify-between items-start">
-                                    <div className="max-w-xs">
-                                        <p className="text-[9px] text-gray-400 italic leading-relaxed">
-                                            Veuillez conserver ce bulletin sans limitation de durée.
-                                            Certification HR numérique active pour l'organisation {organization?.name}.
+                                <div className="mt-auto border-t border-slate-100 pt-8 flex justify-between items-end">
+                                    <div className="max-w-sm">
+                                        <p className="text-[9px] text-slate-300 italic leading-relaxed font-medium">
+                                            Document généré via HRMS Enterprise. Veuillez conserver ce bulletin sans limitation de durée.
+                                            La certification numérique garantit l'intégrité de ce document pour l'organisation {organization?.name}.
                                         </p>
                                     </div>
                                     <div className="flex flex-col items-center">
                                         {organization?.digital_stamp && (
-                                            <div className="text-center">
-                                                <img src={organization.digital_stamp} className="h-16 w-32 object-contain mix-blend-multiply opacity-90" alt="Signature" />
-                                                <div className="flex items-center justify-center gap-1 mt-1 text-green-600">
-                                                    <CheckCircle2 className="h-2.5 w-2.5" />
-                                                    <span className="text-[7px] font-black uppercase tracking-tighter">Signé Numériquement</span>
+                                            <div className="text-center group">
+                                                <div className="relative">
+                                                    <img src={organization.digital_stamp} className="h-20 w-40 object-contain mix-blend-multiply opacity-80 transition-all group-hover:opacity-100" alt="Signature" />
+                                                    <div className="absolute inset-0 bg-emerald-500/5 rounded-full blur-2xl -z-10 group-hover:bg-emerald-500/10 transition-all"></div>
+                                                </div>
+                                                <div className="flex items-center justify-center gap-1.5 mt-2 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
+                                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                                    <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600">Certifié & Signé</span>
                                                 </div>
                                             </div>
                                         )}
@@ -434,13 +484,23 @@ export default function PayrollList() {
                             </div>
                         </div>
 
-                        {/* Simplified Action Bar */}
-                        <div className="flex gap-3 p-1">
-                            <Button onClick={handleDownloadPDF} disabled={isDownloading} className="flex-1 h-12 bg-slate-900 hover:bg-black text-white rounded-xl font-black gap-2 text-sm shadow-md">
-                                {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
-                                Télécharger le PDF
+                        {/* Actions */}
+                        <div className="flex gap-4 p-2">
+                            <Button
+                                onClick={handleDownloadPDF}
+                                disabled={isDownloading}
+                                className="flex-[3] h-14 bg-slate-900 hover:bg-slate-800 text-white rounded-[1.25rem] font-black gap-3 text-base shadow-2xl shadow-slate-200 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                            >
+                                {isDownloading ? <Loader2 className="h-6 w-6 animate-spin" /> : <DownloadCloud className="h-6 w-6" />}
+                                Télécharger le bulletin officiel (PDF)
                             </Button>
-                            <Button variant="outline" className="h-12 px-6 rounded-xl border-slate-200 font-bold text-sm" onClick={() => setIsDetailModalOpen(false)}>Quitter</Button>
+                            <Button
+                                variant="ghost"
+                                className="flex-1 h-14 rounded-[1.25rem] font-black text-slate-400 hover:text-slate-600"
+                                onClick={() => setIsDetailModalOpen(false)}
+                            >
+                                Fermer
+                            </Button>
                         </div>
                     </div>
                 )}

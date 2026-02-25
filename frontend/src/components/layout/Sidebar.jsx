@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 
 const mainNavigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Calendrier', href: '/calendar', icon: Calendar },
     { name: 'Employés', href: '/employees', icon: Users }, // Tasks equivalent
     { name: 'Départements', href: '/departments', icon: Building2 },
     { name: 'Congés', href: '/leaves', icon: Calendar },

@@ -292,36 +292,38 @@ export default function DepartmentList() {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={isEditMode ? "Modifier le département" : "Nouveau département"}
+                description="Structurez la hiérarchie de votre organisation"
+                maxWidth="max-w-xl"
             >
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-3 gap-4">
-                        <div className="col-span-2 space-y-2">
-                            <label className="text-sm font-bold text-gray-700 ml-1">Nom du département</label>
+                        <div className="col-span-2 space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nom du département</label>
                             <Input
                                 required
                                 placeholder="ex: Ressources Humaines"
-                                className="h-14 rounded-2xl bg-gray-50 border-none px-6 font-bold"
+                                className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white font-bold"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             />
                         </div>
-                        <div className="space-y-2">
-                            <label className="text-sm font-bold text-gray-700 ml-1">Code</label>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Code</label>
                             <Input
                                 required
                                 placeholder="RH"
                                 maxLength={10}
-                                className="h-14 rounded-2xl bg-gray-50 border-none px-6 font-bold uppercase"
+                                className="h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white font-bold uppercase"
                                 value={formData.code}
                                 onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                             />
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Responsable (Optionnel)</label>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Responsable (Optionnel)</label>
                         <select
-                            className="w-full h-14 rounded-2xl border-none bg-gray-50 px-6 text-gray-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none font-bold"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                             value={formData.manager}
                             onChange={(e) => setFormData({ ...formData, manager: e.target.value })}
                         >
@@ -332,10 +334,10 @@ export default function DepartmentList() {
                         </select>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Département Parent (Hiérarchie)</label>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Département Parent</label>
                         <select
-                            className="w-full h-14 rounded-2xl border-none bg-gray-50 px-6 text-gray-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none font-bold"
+                            className="w-full h-12 px-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer appearance-none"
                             value={formData.parent}
                             onChange={(e) => setFormData({ ...formData, parent: e.target.value })}
                         >
@@ -346,11 +348,11 @@ export default function DepartmentList() {
                         </select>
                     </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-bold text-gray-700 ml-1">Description</label>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Description</label>
                         <textarea
-                            className="w-full rounded-2xl border-none bg-gray-50 p-6 text-gray-900 focus:ring-4 focus:ring-primary/10 transition-all outline-none min-h-[120px] font-medium leading-relaxed"
-                            placeholder="Décrivez les missions de ce département..."
+                            className="w-full h-24 p-4 rounded-2xl border border-transparent bg-slate-50/50 text-sm font-bold resize-none outline-none focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all"
+                            placeholder="Missions et responsabilités..."
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         />
@@ -359,18 +361,22 @@ export default function DepartmentList() {
                     <div className="pt-4 flex gap-3">
                         <Button
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => setIsModalOpen(false)}
-                            className="flex-1 h-14 rounded-2xl font-bold border-gray-100"
+                            className="flex-1 h-12 rounded-2xl font-bold text-slate-400"
                         >
                             Annuler
                         </Button>
                         <Button
                             type="submit"
-                            className="flex-1 h-14 rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 font-bold"
+                            className="flex-[2] h-12 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200 font-black"
                             disabled={createMutation.isPending || updateMutation.isPending}
                         >
-                            {isEditMode ? "Enregistrer" : "Créer"}
+                            {(createMutation.isPending || updateMutation.isPending) ? (
+                                <Loader2 className="h-5 w-5 animate-spin mx-auto" />
+                            ) : (
+                                isEditMode ? "Enregistrer" : "Créer le département"
+                            )}
                         </Button>
                     </div>
                 </form>
@@ -381,33 +387,35 @@ export default function DepartmentList() {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 title="Supprimer le département ?"
+                description="Cette action est irréversible"
+                maxWidth="max-w-md"
             >
                 <div className="space-y-6">
-                    <div className="p-6 bg-red-50 rounded-[2rem] flex flex-col items-center text-center">
-                        <div className="h-16 w-16 rounded-2xl bg-red-100 flex items-center justify-center text-red-600 mb-4">
-                            <Trash2 className="h-8 w-8" />
+                    <div className="p-8 bg-rose-50/50 rounded-[2rem] border border-rose-100 flex flex-col items-center text-center">
+                        <div className="h-20 w-24 rounded-[2rem] bg-rose-50 border-2 border-rose-100 flex items-center justify-center text-rose-600 mb-4 animate-in zoom-in duration-300">
+                            <Trash2 className="h-10 w-10 font-bold" />
                         </div>
-                        <h4 className="text-xl font-black text-gray-900 mb-2">Action irréversible</h4>
-                        <p className="text-sm text-red-600 font-medium">
-                            Vous êtes sur le point de supprimer le département <span className="font-bold underline">{selectedDept?.name}</span>.
-                            Cette action ne peut pas être annulée.
+                        <h4 className="text-xl font-black text-gray-900 mb-2">Attention !</h4>
+                        <p className="text-sm text-gray-400 font-medium leading-relaxed">
+                            Vous allez supprimer <span className="text-rose-600 font-bold">{selectedDept?.name}</span>.<br />
+                            Les membres seront détachés de ce département.
                         </p>
                     </div>
 
                     <div className="flex gap-3">
                         <Button
-                            variant="outline"
+                            variant="ghost"
                             onClick={() => setIsDeleteModalOpen(false)}
-                            className="flex-1 h-14 rounded-2xl font-bold border-gray-100 text-gray-500"
+                            className="flex-1 h-12 rounded-2xl font-bold text-slate-400"
                         >
                             Annuler
                         </Button>
                         <Button
                             onClick={() => deleteMutation.mutate(selectedDept.id)}
-                            className="flex-1 h-14 rounded-2xl bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-200 font-bold"
+                            className="flex-[2] h-12 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white shadow-xl shadow-rose-100 font-black transition-all"
                             disabled={deleteMutation.isPending}
                         >
-                            Confirmer
+                            {deleteMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin mx-auto" /> : "Confirmer la suppression"}
                         </Button>
                     </div>
                 </div>
@@ -417,31 +425,33 @@ export default function DepartmentList() {
             <Modal
                 isOpen={isMemberModalOpen}
                 onClose={() => setIsMemberModalOpen(false)}
-                title={`Membres - ${selectedDept?.name}`}
+                title="Gérer les membres"
+                description={`Équipe de — ${selectedDept?.name}`}
+                maxWidth="max-w-xl"
             >
                 <div className="space-y-6">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <div className="relative group">
+                        <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
                         <Input
-                            placeholder="Rechercher un employé..."
-                            className="pl-10 h-12 rounded-xl bg-gray-50 border-none"
+                            placeholder="Rechercher un collaborateur..."
+                            className="pl-10 h-12 rounded-2xl bg-slate-50/50 border-transparent focus:bg-white transition-all shadow-none font-bold"
                             value={memberSearchQuery}
                             onChange={(e) => setMemberSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    <div className="space-y-2">
                         {filteredEmployeesForMembers?.map(emp => {
                             const isMember = emp.department === selectedDept?.id
                             return (
-                                <div key={emp.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors">
+                                <div key={emp.id} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50/50 border border-transparent hover:border-slate-100 transition-all hover:bg-white group">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
-                                            {emp.full_name.charAt(0)}
+                                        <div className="h-12 w-12 rounded-full bg-white border border-slate-100 shadow-sm flex items-center justify-center text-primary font-black text-xs group-hover:scale-105 transition-transform">
+                                            {emp.full_name?.charAt(0)}
                                         </div>
                                         <div>
-                                            <p className="font-bold text-gray-900 text-sm">{emp.full_name}</p>
-                                            <p className="text-[10px] text-gray-400 font-mono">#{emp.employee_id}</p>
+                                            <p className="font-black text-slate-900 text-sm tracking-tight">{emp.full_name}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">#{emp.employee_id}</p>
                                         </div>
                                     </div>
 
@@ -449,8 +459,10 @@ export default function DepartmentList() {
                                         size="sm"
                                         variant={isMember ? "outline" : "default"}
                                         className={cn(
-                                            "rounded-xl font-bold h-9 px-4",
-                                            isMember ? "border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300" : "bg-primary text-white"
+                                            "rounded-xl font-bold h-9 px-4 transition-all",
+                                            isMember
+                                                ? "border-rose-100 text-rose-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200"
+                                                : "bg-slate-900 text-white shadow-xl shadow-slate-100"
                                         )}
                                         onClick={() => toggleMemberMutation.mutate({
                                             employeeId: emp.id,
@@ -458,7 +470,7 @@ export default function DepartmentList() {
                                         })}
                                         disabled={toggleMemberMutation.isPending}
                                     >
-                                        {isMember ? "Retirer" : "Ajouter"}
+                                        {toggleMemberMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : (isMember ? "Retirer" : "Ajouter")}
                                     </Button>
                                 </div>
                             )
@@ -467,9 +479,9 @@ export default function DepartmentList() {
 
                     <Button
                         onClick={() => setIsMemberModalOpen(false)}
-                        className="w-full h-14 rounded-2xl bg-gray-900 text-white font-bold"
+                        className="w-full h-14 rounded-2xl bg-slate-900 text-white font-black shadow-xl shadow-slate-200"
                     >
-                        Terminer
+                        Terminer la gestion
                     </Button>
                 </div>
             </Modal>
