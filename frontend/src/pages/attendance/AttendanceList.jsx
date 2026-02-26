@@ -43,19 +43,23 @@ export default function AttendanceList() {
     // Timer effect
     useEffect(() => {
         let interval
-        if (attendanceStatus?.is_clocked_in && attendanceStatus.check_in) {
+        if (attendanceStatus?.is_clocked_in && attendanceStatus.current_session_start) {
             const startTime = new Date()
-            const [hours, minutes, seconds] = attendanceStatus.check_in.split(':')
+            const [hours, minutes, seconds] = attendanceStatus.current_session_start.split(':')
             startTime.setHours(parseInt(hours), parseInt(minutes), parseInt(seconds))
+
+            const previousSeconds = Math.round(parseFloat(attendanceStatus.hours_worked || 0) * 3600)
+
             const updateTimer = () => {
                 const now = new Date()
                 const diff = Math.max(0, differenceInSeconds(now, startTime))
-                setElapsedSeconds(diff)
+                setElapsedSeconds(previousSeconds + diff)
             }
             updateTimer()
             interval = setInterval(updateTimer, 1000)
         } else {
-            setElapsedSeconds(0)
+            const previousSeconds = Math.round(parseFloat(attendanceStatus?.hours_worked || 0) * 3600)
+            setElapsedSeconds(previousSeconds)
         }
         return () => clearInterval(interval)
     }, [attendanceStatus])
@@ -65,6 +69,22 @@ export default function AttendanceList() {
         const m = Math.floor((totalSeconds % 3600) / 60)
         const s = totalSeconds % 60
         return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    }
+
+    const formatTimeOnly = (timeString) => {
+        if (!timeString) return '--:--'
+        // Extraire HH:mm (ex: "13:36:58.1234" -> "13:36")
+        return timeString.substring(0, 5)
+    }
+
+    const formatDuration = (hoursDecimal) => {
+        if (!hoursDecimal) return '--'
+        const totalMinutes = Math.round(parseFloat(hoursDecimal) * 60)
+        const h = Math.floor(totalMinutes / 60)
+        const m = totalMinutes % 60
+        if (h === 0 && m === 0) return '< 1m'
+        if (h === 0) return `${m}m`
+        return `${h}h ${m}m`
     }
 
     // Check-in / Check-out mutations
@@ -208,8 +228,8 @@ export default function AttendanceList() {
                                             "text-xs mt-1",
                                             attendanceStatus?.is_clocked_in ? "text-white/50" : "text-gray-400"
                                         )}>
-                                            Arrivée : {attendanceStatus.check_in}
-                                            {attendanceStatus.check_out && ` · Départ : ${attendanceStatus.check_out}`}
+                                            Arrivée : {formatTimeOnly(attendanceStatus.check_in)}
+                                            {attendanceStatus.check_out && ` · Départ : ${formatTimeOnly(attendanceStatus.check_out)}`}
                                         </div>
                                     )}
                                 </div>
@@ -222,17 +242,17 @@ export default function AttendanceList() {
                                             disabled={checkOutMutation.isPending}
                                         >
                                             <Square className="mr-2 h-5 w-5 fill-current" />
-                                            Pointer le départ
+                                            Prendre une pause / Départ
                                         </Button>
                                     ) : (
                                         <Button
                                             size="lg"
                                             className="rounded-2xl bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20 h-14 px-8"
                                             onClick={() => checkInMutation.mutate()}
-                                            disabled={checkInMutation.isPending || (attendanceStatus?.check_out && !attendanceStatus.is_clocked_in)}
+                                            disabled={checkInMutation.isPending}
                                         >
                                             <Play className="mr-2 h-5 w-5 fill-current" />
-                                            {attendanceStatus?.check_out ? "Journée terminée" : "Pointer l'arrivée"}
+                                            {attendanceStatus?.check_in ? "Reprendre le travail" : "Pointer l'arrivée"}
                                         </Button>
                                     )}
                                 </div>
@@ -305,12 +325,12 @@ export default function AttendanceList() {
                                             <div className="flex items-center gap-4">
                                                 <div className="flex flex-col">
                                                     <span className="text-[10px] text-gray-400 font-bold uppercase">Arrivée</span>
-                                                    <span className="text-sm font-bold text-gray-700">{attendance.check_in || '--:--'}</span>
+                                                    <span className="text-sm font-bold text-gray-700">{formatTimeOnly(attendance.check_in)}</span>
                                                 </div>
                                                 <div className="h-4 w-px bg-gray-100" />
                                                 <div className="flex flex-col">
                                                     <span className="text-[10px] text-gray-400 font-bold uppercase">Départ</span>
-                                                    <span className="text-sm font-bold text-gray-700">{attendance.check_out || '--:--'}</span>
+                                                    <span className="text-sm font-bold text-gray-700">{formatTimeOnly(attendance.check_out)}</span>
                                                 </div>
                                             </div>
                                         </td>
@@ -318,7 +338,7 @@ export default function AttendanceList() {
                                             <div className="flex items-center gap-2">
                                                 <Clock className="h-4 w-4 text-primary" />
                                                 <span className="font-bold text-gray-900">
-                                                    {attendance.hours_worked ? `${parseFloat(attendance.hours_worked).toFixed(1)}h` : '--'}
+                                                    {formatDuration(attendance.hours_worked)}
                                                 </span>
                                             </div>
                                         </td>

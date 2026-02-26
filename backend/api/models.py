@@ -323,6 +323,7 @@ class Attendance(models.Model):
     date = models.DateField()
     check_in = models.TimeField(null=True, blank=True)
     check_out = models.TimeField(null=True, blank=True)
+    current_session_start = models.TimeField(null=True, blank=True)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PRESENT)
     hours_worked = models.DecimalField(max_digits=5, decimal_places=2, default=0)
@@ -540,3 +541,63 @@ class Notification(models.Model):
         
     def __str__(self):
         return f"{self.type} - {self.recipient.username} - {self.title}"
+
+
+# ==================== SCREEN MONITORING ====================
+
+class ScreenCaptureSchedule(models.Model):
+    """Configuration des captures d'écran aléatoires par organisation"""
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name='screen_capture_schedule'
+    )
+    is_enabled = models.BooleanField(default=False)
+
+    # Plage horaire de travail (heure locale de l'org)
+    work_start = models.TimeField(default='09:00')
+    work_end = models.TimeField(default='18:00')
+
+    # Nombre de captures aléatoires par jour ouvré
+    captures_per_day = models.PositiveIntegerField(default=5)
+
+    # Politique de rétention (jours)
+    retention_days = models.PositiveIntegerField(default=30)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuration de surveillance'
+        verbose_name_plural = 'Configurations de surveillance'
+
+    def __str__(self):
+        return f"Schedule – {self.organization.name} ({'actif' if self.is_enabled else 'inactif'})"
+
+
+class ScreenshotCapture(models.Model):
+    """Capture d'écran individuelle d'un employé"""
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='screenshots'
+    )
+    employee = models.ForeignKey(
+        Employee, on_delete=models.CASCADE, related_name='screenshots'
+    )
+
+    image = models.ImageField(upload_to='screenshots/%Y/%m/')
+    captured_at = models.DateTimeField(default=timezone.now)
+    session_date = models.DateField(default=timezone.localdate)
+
+    # L'admin peut marquer une capture suspecte
+    is_flagged = models.BooleanField(default=False)
+    flag_reason = models.CharField(max_length=255, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-captured_at']
+        verbose_name = 'Capture d\'écran'
+        verbose_name_plural = 'Captures d\'écran'
+
+    def __str__(self):
+        return f"{self.employee.full_name} – {self.captured_at.strftime('%Y-%m-%d %H:%M')}"

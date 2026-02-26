@@ -5,7 +5,8 @@ from .models import (
     Department, Employee,
     LeaveType, LeaveRequest,
     Attendance, Document, Payroll,
-    Project, Event, Notification
+    Project, Event, Notification,
+    ScreenCaptureSchedule, ScreenshotCapture
 )
 
 
@@ -417,3 +418,56 @@ class ProjectSerializer(serializers.ModelSerializer):
             'due_date', 'status', 'icon_emoji', 'color', 'created_at'
         ]
         read_only_fields = ['id', 'created_at']
+
+
+# ==================== SCREEN MONITORING ====================
+
+class ScreenCaptureScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ScreenCaptureSchedule
+        fields = [
+            'id', 'organization',
+            'is_enabled', 'work_start', 'work_end',
+            'captures_per_day', 'retention_days',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class ScreenshotCaptureSerializer(serializers.ModelSerializer):
+    employee_detail = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ScreenshotCapture
+        fields = [
+            'id', 'organization', 'employee', 'employee_detail',
+            'image', 'image_url',
+            'captured_at', 'session_date',
+            'is_flagged', 'flag_reason',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'captured_at', 'session_date', 'created_at']
+        extra_kwargs = {
+            'image': {'write_only': True},
+            'organization': {'required': False},
+        }
+
+    def get_employee_detail(self, obj):
+        return {
+            'id': obj.employee.id,
+            'full_name': obj.employee.full_name,
+            'employee_id': obj.employee.employee_id,
+            'department': obj.employee.department.name if obj.employee.department else None,
+            'profile_photo': (
+                self.context.get('request').build_absolute_uri(obj.employee.profile_photo.url)
+                if obj.employee.profile_photo and self.context.get('request')
+                else None
+            ),
+        }
+
+    def get_image_url(self, obj):
+        request = self.context.get('request')
+        if obj.image and request:
+            return request.build_absolute_uri(obj.image.url)
+        return None

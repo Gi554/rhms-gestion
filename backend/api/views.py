@@ -14,7 +14,8 @@ from .models import (
     Department, Employee,
     LeaveType, LeaveRequest,
     Attendance, Document, Payroll,
-    Project, Event, Notification
+    Project, Event, Notification,
+    ScreenCaptureSchedule, ScreenshotCapture
 )
 from .serializers import (
     OrganizationSerializer, OrganizationMemberSerializer,
@@ -23,7 +24,8 @@ from .serializers import (
     LeaveTypeSerializer, LeaveRequestListSerializer, LeaveRequestDetailSerializer,
     AttendanceSerializer, DocumentSerializer, PayrollSerializer,
     ProjectSerializer, EventSerializer, UserProfileSerializer,
-    NotificationSerializer
+    NotificationSerializer,
+    ScreenCaptureScheduleSerializer, ScreenshotCaptureSerializer
 )
 from .permissions import (
     IsOrganizationMember, IsOrganizationAdmin,
@@ -577,7 +579,9 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
             'status': attendance.status,
             'check_in': attendance.check_in,
             'check_out': attendance.check_out,
-            'is_clocked_in': attendance.check_in is not None and attendance.check_out is None
+            'current_session_start': attendance.current_session_start,
+            'hours_worked': attendance.hours_worked,
+            'is_clocked_in': attendance.current_session_start is not None
         })
 
     @action(detail=False, methods=['post'])
@@ -596,14 +600,18 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
             defaults={
                 'organization': employee.organization,
                 'check_in': now_time,
+                'current_session_start': now_time,
                 'status': 'present'
             }
         )
         
         if not created:
-            if attendance.check_in:
-                return Response({'error': 'Déjà pointé aujourd\'hui'}, status=status.HTTP_400_BAD_REQUEST)
-            attendance.check_in = now_time
+            if attendance.current_session_start:
+                return Response({'error': 'Déjà en poste actuellement'}, status=status.HTTP_400_BAD_REQUEST)
+            if not attendance.check_in:
+                attendance.check_in = now_time
+            attendance.current_session_start = now_time
+            attendance.check_out = None
             attendance.save()
             
         return Response(AttendanceSerializer(attendance).data)
@@ -620,20 +628,21 @@ class AttendanceViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
         
         attendance = Attendance.objects.filter(employee=employee, date=today).first()
         
-        if not attendance or not attendance.check_in:
-            return Response({'error': 'Vous devez d\'abord pointer à l\'arrivée'}, status=status.HTTP_400_BAD_REQUEST)
-            
-        if attendance.check_out:
-            return Response({'error': 'Déjà pointé au départ aujourd\'hui'}, status=status.HTTP_400_BAD_REQUEST)
+        if not attendance or not attendance.current_session_start:
+            return Response({'error': 'Vous n\'êtes pas actuellement en poste'}, status=status.HTTP_400_BAD_REQUEST)
             
         attendance.check_out = now_time
         
-        # Calculer les heures travaillées
+        # Calculer les heures travaillées depuis le début de la session
         import datetime
-        dt_in = datetime.datetime.combine(datetime.date.today(), attendance.check_in)
+        from decimal import Decimal
+        dt_in = datetime.datetime.combine(datetime.date.today(), attendance.current_session_start)
         dt_out = datetime.datetime.combine(datetime.date.today(), now_time)
         diff = dt_out - dt_in
-        attendance.hours_worked = diff.total_seconds() / 3600
+        session_hours = diff.total_seconds() / 3600
+        
+        attendance.hours_worked = Decimal(str(attendance.hours_worked)) + Decimal(str(session_hours))
+        attendance.current_session_start = None
         
         attendance.save()
         return Response(AttendanceSerializer(attendance).data)
@@ -827,3 +836,138 @@ class NotificationViewSet(viewsets.ModelViewSet):
         notification.is_read = True
         notification.save()
         return Response({'status': 'marked as read'})
+
+
+# ==================== SCREEN MONITORING ====================
+
+class ScreenCaptureScheduleViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
+    """
+    ViewSet pour configurer les captures d'écran aléatoires.
+    Accessible uniquement aux admins et owners.
+    """
+    queryset = ScreenCaptureSchedule.objects.select_related('organization').all()
+    serializer_class = ScreenCaptureScheduleSerializer
+    permission_classes = [IsAuthenticated, IsOrganizationAdmin]
+
+    def get_organization(self):
+        """Retourne l'organisation active de l'utilisateur."""
+        member = self.request.user.organization_memberships.filter(is_active=True).first()
+        return member.organization if member else None
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def current(self, request):
+        """Retourne la configuration de capture de l'organisation de l'utilisateur."""
+        org = self.get_organization()
+        if not org:
+            return Response({'detail': 'Aucune organisation trouvée.'}, status=status.HTTP_404_NOT_FOUND)
+
+        schedule, _ = ScreenCaptureSchedule.objects.get_or_create(
+            organization=org,
+            defaults={
+                'is_enabled': False,
+                'work_start': '09:00',
+                'work_end': '18:00',
+                'captures_per_day': 5,
+                'retention_days': 30,
+            }
+        )
+        serializer = self.get_serializer(schedule)
+        return Response(serializer.data)
+
+
+class ScreenshotCaptureViewSet(OrganizationFilterMixin, viewsets.ModelViewSet):
+    """
+    ViewSet pour les captures d'écran des employés.
+
+    Règles d'accès :
+    - Employé (role=employee)  → 403 Forbidden
+    - Chef de département (role=manager) → uniquement les captures de son département
+    - Admin / Owner → toutes les captures de l'organisation
+    """
+    queryset = ScreenshotCapture.objects.select_related(
+        'organization', 'employee', 'employee__department'
+    ).all()
+    serializer_class = ScreenshotCaptureSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['employee', 'session_date', 'is_flagged']
+    ordering_fields = ['captured_at', 'session_date']
+    ordering = ['-captured_at']
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_member_role(self):
+        member = self.request.user.organization_memberships.filter(is_active=True).first()
+        return member.role if member else 'employee'
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return ScreenshotCapture.objects.all()
+
+        role = self.get_member_role()
+
+        # Les employés n'ont aucun accès
+        if role == 'employee':
+            return ScreenshotCapture.objects.none()
+
+        queryset = super().get_queryset()
+
+        # Les managers voient uniquement leur département
+        if role == 'manager':
+            employee_profile = getattr(user, 'employee_profile', None)
+            if not employee_profile:
+                return ScreenshotCapture.objects.none()
+
+            # Départements dont cet employé est le manager
+            managed_dept_ids = employee_profile.managed_departments.values_list('id', flat=True)
+            return queryset.filter(employee__department_id__in=managed_dept_ids)
+
+        # Admin / Owner → tout l'organisation (filtré par OrganizationFilterMixin)
+        return queryset
+
+    def perform_create(self, serializer):
+        """Upload d'une capture par l'employé connecté."""
+        user = self.request.user
+        employee = getattr(user, 'employee_profile', None)
+        if not employee:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Pas de profil employé associé.")
+
+        serializer.save(
+            employee=employee,
+            organization=employee.organization,
+        )
+
+    @action(detail=True, methods=['patch'], url_path='flag')
+    def flag(self, request, pk=None):
+        """Flaguer / déflaguer une capture (admin/manager uniquement)."""
+        role = self.get_member_role()
+        if role == 'employee':
+            return Response({'detail': 'Accès refusé.'}, status=status.HTTP_403_FORBIDDEN)
+
+        capture = self.get_object()
+        capture.is_flagged = request.data.get('is_flagged', not capture.is_flagged)
+        capture.flag_reason = request.data.get('flag_reason', capture.flag_reason)
+        capture.save()
+        serializer = self.get_serializer(capture)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def stats(self, request):
+        """Statistiques rapides: total, flagged, par employé."""
+        role = self.get_member_role()
+        if role == 'employee':
+            return Response({'detail': 'Accès refusé.'}, status=status.HTTP_403_FORBIDDEN)
+
+        qs = self.filter_queryset(self.get_queryset())
+        from django.db.models import Count as DjCount
+        total = qs.count()
+        flagged = qs.filter(is_flagged=True).count()
+        today = timezone.now().date()
+        today_count = qs.filter(session_date=today).count()
+
+        return Response({
+            'total': total,
+            'flagged': flagged,
+            'today': today_count,
+        })

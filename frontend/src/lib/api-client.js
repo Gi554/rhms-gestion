@@ -144,6 +144,17 @@ export const api = {
     getNotifications: (params) => apiClient.get("/api/notifications/", { params }),
     markNotificationRead: (id) => apiClient.post(`/api/notifications/${id}/mark-read/`),
     markAllNotificationsRead: () => apiClient.post("/api/notifications/mark-all-read/"),
+
+    // Screen Monitoring
+    getCaptureSchedule: () => apiClient.get("/api/screen-capture-schedule/current/"),
+    updateCaptureSchedule: (id, data) => apiClient.put(`/api/screen-capture-schedule/${id}/`, data),
+    getScreenshots: (params) => apiClient.get("/api/screenshots/", { params }),
+    getScreenshotStats: () => apiClient.get("/api/screenshots/stats/"),
+    deleteScreenshot: (id) => apiClient.delete(`/api/screenshots/${id}/`),
+    flagScreenshot: (id, data) => apiClient.patch(`/api/screenshots/${id}/flag/`, data),
+    uploadScreenshot: (formData) => apiClient.post("/api/screenshots/", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+    }),
 };
 
 export default apiClient;
