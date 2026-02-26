@@ -44,16 +44,40 @@ def initialize_production():
     
     if created:
         print(f"✅ Organisation '{org.name}' créée")
-    
-    # 3. Lier l'admin à l'organisation comme 'owner'
-    member, created = OrganizationMember.objects.get_or_create(
-        organization=org,
-        user=admin_user,
-        defaults={'role': 'owner'}
-    )
-    
-    if created:
-        print(f"✅ Admin lié à l'organisation en tant que propriétaire")
+
+    # 4. Créer des Départements par défaut
+    print("\n🏢 Création des départements par défaut...")
+    depts = [
+        {'name': 'Direction', 'code': 'DIR'},
+        {'name': 'Ressources Humaines', 'code': 'RH'},
+        {'name': 'Informatique', 'code': 'IT'},
+        {'name': 'Marketing & Ventes', 'code': 'MKT'},
+    ]
+    for d in depts:
+        dept, d_created = Department.objects.get_or_create(
+            organization=org,
+            name=d['name'],
+            defaults={'code': d['code']}
+        )
+        if d_created:
+            print(f"   ✅ Département créé : {d['name']}")
+
+    # 5. Créer des Types de Congés par défaut
+    print("\n📅 Création des types de congés par défaut...")
+    leave_types = [
+        {'name': 'Congés Payés', 'code': 'PAID', 'color': '#4F46E5', 'max_days_per_year': 25},
+        {'name': 'Congés Maladie', 'code': 'SICK', 'color': '#EF4444', 'requires_approval': False},
+        {'name': 'RTT', 'code': 'RTT', 'color': '#10B981', 'max_days_per_year': 12},
+        {'name': 'Congé sans solde', 'code': 'UNPAID', 'color': '#6B7280', 'is_paid': False},
+    ]
+    for lt in leave_types:
+        l_type, lt_created = LeaveType.objects.get_or_create(
+            organization=org,
+            code=lt['code'],
+            defaults=lt
+        )
+        if lt_created:
+            print(f"   ✅ Type de congé créé : {lt['name']}")
 
     print("\n🎉 Initialisation terminée avec succès !")
     print(f"Identifiants : {admin_username} / {admin_password}")
