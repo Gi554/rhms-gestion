@@ -3,7 +3,8 @@ from .models import (
     Organization, OrganizationMember,
     Department, Employee,
     LeaveType, LeaveRequest,
-    Attendance, Document, Payroll
+    Attendance, Document, Payroll,
+    ScreenCaptureSchedule, ScreenshotCapture
 )
 
 
@@ -212,3 +213,22 @@ class PayrollAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+# ==================== SCREEN MONITORING ====================
+
+@admin.register(ScreenCaptureSchedule)
+class ScreenCaptureScheduleAdmin(admin.ModelAdmin):
+    list_display = ('organization', 'is_enabled', 'work_start', 'work_end', 'captures_per_day', 'retention_days')
+    list_filter = ('is_enabled', 'organization')
+    search_fields = ('organization__name',)
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ScreenshotCapture)
+class ScreenshotCaptureAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'organization', 'session_date', 'captured_at', 'is_flagged')
+    list_filter = ('organization', 'is_flagged', 'session_date')
+    search_fields = ('employee__first_name', 'employee__last_name', 'employee__employee_id', 'flag_reason')
+    readonly_fields = ('captured_at', 'created_at')
+    autocomplete_fields = ('employee', 'organization')

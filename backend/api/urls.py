@@ -7,7 +7,8 @@ from .views import (
     DepartmentViewSet, EmployeeViewSet,
     LeaveTypeViewSet, LeaveRequestViewSet,
     AttendanceViewSet, DocumentViewSet, PayrollViewSet,
-    ProjectViewSet, EventViewSet, MeViewSet, NotificationViewSet
+    ProjectViewSet, EventViewSet, MeViewSet, NotificationViewSet,
+    ScreenCaptureScheduleViewSet, ScreenshotCaptureViewSet
 )
 from .health import health_check
 
@@ -40,6 +41,10 @@ router.register(r'payrolls', PayrollViewSet, basename='payroll')
 router.register(r'projects', ProjectViewSet, basename='project')
 router.register(r'events', EventViewSet, basename='event')
 router.register(r'notifications', NotificationViewSet, basename='notification')
+
+# Screen Monitoring
+router.register(r'screen-capture-schedule', ScreenCaptureScheduleViewSet, basename='screen-capture-schedule')
+router.register(r'screenshots', ScreenshotCaptureViewSet, basename='screenshot')
 
 urlpatterns = [
     # Auth endpoints
