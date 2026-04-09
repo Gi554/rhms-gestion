@@ -81,6 +81,21 @@ export default function EmployeeDetail() {
         }
     }
 
+    const formatTimeOnly = (timeString) => {
+        if (!timeString) return '--:--'
+        return timeString.substring(0, 5)
+    }
+
+    const formatDuration = (hoursDecimal) => {
+        if (!hoursDecimal) return '--'
+        const totalMinutes = Math.round(parseFloat(hoursDecimal) * 60)
+        const h = Math.floor(totalMinutes / 60)
+        const m = totalMinutes % 60
+        if (h === 0 && m === 0) return '< 1m'
+        if (h === 0) return `${m}m`
+        return `${h}h ${m}m`
+    }
+
     const totalHours = attendances
         ? attendances.reduce((sum, a) => sum + (parseFloat(a.hours_worked) || 0), 0).toFixed(1)
         : 0
@@ -365,10 +380,10 @@ export default function EmployeeDetail() {
                                                 <td className="px-4 py-4 text-sm font-bold text-slate-700 capitalize">
                                                     {format(new Date(a.date), 'EEEE d MMMM', { locale: fr })}
                                                 </td>
-                                                <td className="px-4 py-4 text-sm font-medium text-slate-500">{a.check_in || '--:--'}</td>
-                                                <td className="px-4 py-4 text-sm font-medium text-slate-500">{a.check_out || '--:--'}</td>
+                                                <td className="px-4 py-4 text-sm font-medium text-slate-500">{formatTimeOnly(a.check_in)}</td>
+                                                <td className="px-4 py-4 text-sm font-medium text-slate-500">{formatTimeOnly(a.check_out)}</td>
                                                 <td className="px-4 py-4 text-sm font-black text-slate-900">
-                                                    {a.hours_worked ? `${parseFloat(a.hours_worked).toFixed(1)}h` : '--'}
+                                                    {formatDuration(a.hours_worked)}
                                                 </td>
                                                 <td className="px-4 py-4">
                                                     <span className={cn(

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useOutletContext } from 'react-router-dom'
-import jsPDF from 'jsPDF'
+import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import {
     FileText, Search, Calendar, Filter, Download,

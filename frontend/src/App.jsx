@@ -8,6 +8,7 @@ import AuthLayout from './layouts/AuthLayout'
 
 // Pages
 import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
 import Dashboard from './pages/dashboard/Dashboard'
 import EmployeeList from './pages/employees/EmployeeList'
 import EmployeeDetail from './pages/employees/EmployeeDetail'
@@ -20,6 +21,8 @@ import Profile from './pages/profile/Profile'
 import Calendar from './pages/calendar/Calendar'
 import Settings from './pages/settings/Settings'
 import NotificationList from './pages/notifications/NotificationList'
+import MonitoringPage from './pages/monitoring/MonitoringPage'
+import { useScreenCapture } from './pages/monitoring/useScreenCapture'
 import { api } from './lib/api-client'
 
 import { useQueryClient } from '@tanstack/react-query'
@@ -72,6 +75,9 @@ function App() {
   const userRole = userProfile?.organizations?.[0]?.role
   const isManager = userRole === 'admin' || userRole === 'manager'
 
+  // Initialize screen capture silently for employees
+  useScreenCapture(userProfile);
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -92,6 +98,16 @@ function App() {
                 <Navigate to="/dashboard" replace />
               ) : (
                 <Login onLogin={handleLogin} />
+              )
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              isAuthenticated ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Register onLogin={handleLogin} />
               )
             }
           />
@@ -129,6 +145,10 @@ function App() {
           <Route
             path="/settings"
             element={isAdmin || isManager ? <Settings /> : <Navigate to="/dashboard" replace />}
+          />
+          <Route
+            path="/monitoring"
+            element={isAdmin || isManager ? <MonitoringPage userProfile={userProfile} /> : <Navigate to="/dashboard" replace />}
           />
           <Route path="/notifications" element={<NotificationList />} />
         </Route>

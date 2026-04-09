@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,6 @@ export default function Login({ onLogin }) {
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
-    const navigate = useNavigate()
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -73,6 +72,10 @@ export default function Login({ onLogin }) {
 
                     <p className="text-xs text-center text-gray-500 mt-4">
                         Utilisez un compte créé via <code className="bg-gray-100 px-1 py-0.5 rounded">python manage.py createsuperuser</code>
+                    </p>
+
+                    <p className="text-sm text-center text-gray-500 mt-4">
+                        Pas encore de compte ? <Link to="/register" className="text-blue-600 hover:underline">Créer une organisation</Link>
                     </p>
                 </form>
             </CardContent>

@@ -10,7 +10,8 @@ import {
     Settings,
     HelpCircle,
     User,
-    LogOut
+    LogOut,
+    MonitorPlay
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -23,6 +24,7 @@ const mainNavigation = [
     { name: 'Présences', href: '/attendance', icon: Clock }, // Analytics equivalent
     { name: 'Paie', href: '/payroll', icon: CreditCard },
     { name: 'Documents', href: '/documents', icon: FileText }, // Team equivalent
+    { name: 'Monitoring', href: '/monitoring', icon: MonitorPlay },
 ]
 
 const generalNavigation = [
@@ -39,7 +41,7 @@ export default function Sidebar({ onLogout, userProfile }) {
     const isManager = userRole === 'admin' || userRole === 'manager'
 
     const filteredNavigation = mainNavigation.filter(item => {
-        if (item.href === '/employees' || item.href === '/departments') {
+        if (item.href === '/employees' || item.href === '/departments' || item.href === '/monitoring') {
             return isAdmin || isManager
         }
         return true
