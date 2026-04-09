@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,7 +15,6 @@ export default function Register({ onLogin }) {
         password: ''
     })
     const [loading, setLoading] = useState(false)
-    const navigate = useNavigate()
 
     const handleChange = (e) => {
         setFormData(prev => ({
