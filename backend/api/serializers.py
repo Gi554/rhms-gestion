@@ -58,6 +58,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'role': m.role
         } for m in memberships]
 
+class RegisterSerializer(serializers.Serializer):
+    company_name = serializers.CharField(max_length=200)
+    first_name = serializers.CharField(max_length=120)
+    last_name = serializers.CharField(max_length=120)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists() or User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Un compte avec cet email existe déjà.")
+        return value
+
 
 # ==================== ORGANIZATION ====================
 
