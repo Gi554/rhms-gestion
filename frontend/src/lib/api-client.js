@@ -65,6 +65,7 @@ apiClient.interceptors.response.use(
 export const api = {
     // Auth
     login: (credentials) => apiClient.post("/api/auth/token/", credentials),
+    register: (data) => apiClient.post("/api/auth/register/", data),
     refreshToken: (refresh) => apiClient.post("/api/auth/token/refresh/", { refresh }),
     getProfile: () => apiClient.get("/api/auth/me/"),
     updateProfile: (data) => apiClient.patch("/api/auth/me/update-profile/", data),

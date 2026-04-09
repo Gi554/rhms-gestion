@@ -8,7 +8,8 @@ from .views import (
     LeaveTypeViewSet, LeaveRequestViewSet,
     AttendanceViewSet, DocumentViewSet, PayrollViewSet,
     ProjectViewSet, EventViewSet, MeViewSet, NotificationViewSet,
-    ScreenCaptureScheduleViewSet, ScreenshotCaptureViewSet
+    ScreenCaptureScheduleViewSet, ScreenshotCaptureViewSet,
+    RegisterView
 )
 from .health import health_check
 
@@ -48,6 +49,7 @@ router.register(r'screenshots', ScreenshotCaptureViewSet, basename='screenshot')
 
 urlpatterns = [
     # Auth endpoints
+    path('auth/register/', RegisterView.as_view(), name='auth_register'),
     path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     

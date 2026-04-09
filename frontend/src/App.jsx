@@ -8,6 +8,7 @@ import AuthLayout from './layouts/AuthLayout'
 
 // Pages
 import Login from './pages/auth/Login'
+import Register from './pages/auth/Register'
 import Dashboard from './pages/dashboard/Dashboard'
 import EmployeeList from './pages/employees/EmployeeList'
 import EmployeeDetail from './pages/employees/EmployeeDetail'
@@ -97,6 +98,16 @@ function App() {
                 <Navigate to="/dashboard" replace />
               ) : (
                 <Login onLogin={handleLogin} />
+              )
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              isAuthenticated ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Register onLogin={handleLogin} />
               )
             }
           />

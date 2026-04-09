@@ -1,7 +1,9 @@
 from rest_framework import viewsets, filters, status, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 from django.db import transaction
@@ -31,6 +33,71 @@ from .permissions import (
     IsOrganizationMember, IsOrganizationAdmin,
     IsManagerOrAdmin, IsOwnerOrReadOnly
 )
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        from .serializers import RegisterSerializer
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.validated_data
+            
+            user = User.objects.create_user(
+                username=data['email'].split('@')[0] + str(User.objects.count()), # ensure uniqueness
+                email=data['email'],
+                password=data['password'],
+                first_name=data['first_name'],
+                last_name=data['last_name']
+            )
+            
+            org = Organization.objects.create(
+                name=data['company_name'],
+                email=data['email']
+            )
+            
+            OrganizationMember.objects.create(
+                organization=org,
+                user=user,
+                role=OrganizationMember.ROLE_OWNER
+            )
+
+            # Auto-create Employee for the owner
+            year = timezone.now().year
+            auto_id = f"EMP-{year}-0001"
+            Employee.objects.create(
+                organization=org,
+                user=user,
+                employee_id=auto_id,
+                first_name=data['first_name'],
+                last_name=data['last_name'],
+                email=data['email'],
+                position="Founder",
+                hire_date=timezone.now().date()
+            )
+            
+            refresh = RefreshToken.for_user(user)
+            
+            return Response({
+                'user': {
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                },
+                'organization': {
+                    'id': org.id,
+                    'name': org.name
+                },
+                'tokens': {
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }
+            }, status=status.HTTP_201_CREATED)
+            
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class MeViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
